@@ -8,7 +8,7 @@
 - クラス名は cls で始める
 - クラス型の引数名・変数名には、オブジェクトであることが分かる接頭辞 c を使用する
   - 例：in_cCurve, in_cCalendar
-- モジュール名は、mdl_で始まる
+- モジュール名は mdl_ で始める
 
 ## Business Day Convention
 - 営業日調整の既定値は Modified Following
@@ -20,7 +20,7 @@
 - IsHoliday(in_TargetDate) を返す
 - Business Day Convention の判定は別関数で行う
 - 当面は Tokyo holiday をコード内に保持する
-- 将来的に Holidayシート A列から読み込む方式へ切替可能な設計とする
+- 休日データは、将来的に Holidayシート A列から読み込む方式へ切替可能な設計とする
 
 ## Discount Curve Interface
 - クラス名：clsDiscountCurve
