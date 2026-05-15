@@ -110,8 +110,6 @@ in_cCurve
 in_cCalendar
 ```
 
----
-
 ## 5. クラス設計
 
 ### 5.1 clsHolidayCalendar
