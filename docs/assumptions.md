@@ -12,7 +12,7 @@
 
 ## Holiday Calendaer
 - クラス名：clsHolidayCalendar
-- DF(date), ZeroRateCont(date), ForwardRateBetween(d1,d2) を返す
+- IsHoliday(day) を返す
 
 ## Discount Curve (OIS Curve)
 - クラス名：clsOISStepForwardCurve
