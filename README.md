@@ -9,3 +9,15 @@ TONA/OISカーブ、キャップボラ、スワップションボラ、CMS評価
 - ChatGPTには、修正したいファイルだけ貼る
 - 前提条件はこのREADMEに残す
 
+GitHub イメージ図
+└─ Repository（プロジェクトの箱）
+   ├─ README.md
+   ├─ docs/
+   │  └─ assumptions.md
+   └─ src/
+      ├─ classes/
+      │  ├─ CHolidayCalendar.cls
+      │  └─ COISStepForwardCurve.cls
+      └─ modules/
+         ├─ mdlDateUtils.bas
+         └─ mdlBachelier.bas
