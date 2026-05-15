@@ -32,7 +32,7 @@
 - ACT/365
 - 1年以内は満期一括、1年超は年1回払い
 
-## Discount Curve (OIS Curve)
+## StepForwardCurve
 - クラス名：clsOISStepForwardCurve
 - DF(date), ZeroRateCont(date), ForwardRate(d1,d2) を返す
 - 評価日 ON、1M、2M、3M、6M、1Y、2Y…のOISレートからブートストラップ
