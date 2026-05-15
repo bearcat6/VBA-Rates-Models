@@ -7,7 +7,7 @@
 - 関数の引数には、in_ を入れる
 - クラス名は cls で始める
 - クラス型の引数名・変数名には、オブジェクトであることが分かる接頭辞 c を使用する
-例：in_cCurve や in_cCalendar
+  - 例：in_cCurve, in_cCalendar
 - モジュール名は、mdl_で始まる
 
 ## Business Day Convention
@@ -26,7 +26,8 @@
 - クラス名：clsDiscountCurve
 - DF(in_TargetDate), ZeroRateCont(in_TargetDate), ForwardRate(in_StartDate, in_EndDate) を返す
 - ForwardRate(in_StartDate, in_EndDate) は、DF比から算出する期間フォワードレートとする
-  ForwardRate は、原則として ACT/365 ベースの単利年率とする
+- ForwardRate は、原則として ACT/365 ベースの単利年率とする
+- ForwardRate = (DF(in_StartDate) / DF(in_EndDate) - 1) / YearFraction(in_StartDate, in_EndDate)
 - clsDiscountCurve は共通インターフェース的な位置づけとする
 - 実際の構築手法は、clsOISStepForwardCurve 等の具体クラスで実装する
 - 将来的に、ゼロレート直線補間型などの具体クラスを追加できる設計とする
@@ -44,7 +45,8 @@
 - クラス名：clsOISStepForwardCurve
 - DF(in_TargetDate), ZeroRateCont(in_TargetDate), ForwardRate(in_StartDate, in_EndDate) を返す
 - ForwardRate(in_StartDate, in_EndDate) は、DF比から算出する期間フォワードレートとする
-  ForwardRate は、原則として ACT/365 ベースの単利年率とする
+- ForwardRate は、原則として ACT/365 ベースの単利年率とする
+- ForwardRate = (DF(in_StartDate) / DF(in_EndDate) - 1) / YearFraction(in_StartDate, in_EndDate)
 - 評価日 ON、1M、2M、3M、6M、1Y、2Y…のOISレートからブートストラップ
 - 6M以降は3か月刻みの瞬間ONフォワード
 - 観測点間に複数の3M区間がある場合は、直前フォワード f_prev に対して、 f_prev + 1Δf, f_prev + 2Δf, ... として、Δfをブートストラップする
