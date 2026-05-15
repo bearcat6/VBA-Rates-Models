@@ -6,8 +6,8 @@ Option Explicit
 '
 ' 役割：
 '   ・休日データを保持するだけのクラス
-'   ・営業日判定、営業日加算、Modified Following 等は
-'     modDateUtil 側で行う
+'   ・土日を含む営業日判定、営業日加算、Modified Following 等は
+'     mdl_BusinessDay 側で行う
 '
 ' 設計方針：
 '   ・Dictionary は late binding
@@ -16,14 +16,13 @@ Option Explicit
 '============================================================
 
 Private mHolidays As Object
-Private mIsInitialized As Boolean
 
 '------------------------------------------------------------
 ' 初期化
 '------------------------------------------------------------
 Private Sub Class_Initialize()
   Set mHolidays = CreateObject("Scripting.Dictionary")
-  mIsInitialized = True
+  LoadTokyoHolidays
 End Sub
 
 '------------------------------------------------------------
@@ -42,15 +41,15 @@ End Sub
 '------------------------------------------------------------
 ' 休日を1日追加
 '------------------------------------------------------------
-Public Sub AddHoliday(ByVal in_Date As Date)
-  
+Public Sub AddHoliday(ByVal in_TargetDate As Date, Optional ByVal in_Name As String = "")
+
   Dim key As Long
-  key = CLng(DateValue(in_Date))
-  
+  key = CLng(DateValue(in_TargetDate))
+
   If Not mHolidays.Exists(key) Then
-      mHolidays.Add key, True
+      mHolidays.Add key, in_Name
   End If
-  
+
 End Sub
 
 
@@ -99,12 +98,12 @@ End Sub
 '
 ' 注意：
 '   ・土日はここでは判定しない
-'   ・土日判定は modDateUtil.IsBusinessDayEx 側で行う
+'   ・土日判定は mdl_BusinessDay 側で行う
 '------------------------------------------------------------
-Public Function IsHoliday(ByVal in_Date As Date) As Boolean
+Public Function IsHoliday(ByVal in_TargetDate As Date) As Boolean
   
   Dim key As Long
-  key = CLng(DateValue(in_Date))
+  key = CLng(DateValue(in_TargetDate))
   
   If mHolidays Is Nothing Then
     IsHoliday = False
