@@ -15,15 +15,19 @@
 
 ## Holiday Calendar
 - クラス名：clsHolidayCalendar
-- IsHoliday(day) を返す
-- business day convention の判定は別の関数で
-- Tokyo holiday をベタ打ち
+- IsHoliday(in_TargetDate) を返す
+- Business Day Convention の判定は別関数で行う
+- 当面は Tokyo holiday をコード内に保持する
+- 将来的に Holidayシート A列から読み込む方式へ切替可能な設計とする
 
-## Discount Curve (OIS Curve)
+## Discount Curve Interface
 - クラス名：clsDiscountCurve
-- DF(date), ZeroRateCont(date), ForwardRate(d1,d2) を返す
-- どの手法でカーブを作るのかインプットで選択
-- 現在は、StepForwardCurveを作る。ゼロレートの直線補間も将来作る
+- DF(in_TargetDate), ZeroRateCont(in_TargetDate), ForwardRate(in_StartDate, in_EndDate) を返す
+- clsDiscountCurve は共通インターフェース的な位置づけとする
+- 実際の構築手法は、clsOISStepForwardCurve 等の具体クラスで実装する
+- 将来的に、ゼロレート直線補間型などの具体クラスを追加できる設計とする
+
+## OIS共通前提
 - ONは評価日→翌営業日、スポット前まではON横置き
 - OISはスポットT+2開始
 - Delay方式2営業日
@@ -34,7 +38,7 @@
 
 ## StepForwardCurve
 - クラス名：clsOISStepForwardCurve
-- DF(date), ZeroRateCont(date), ForwardRate(d1,d2) を返す
+- DF(in_TargetDate), ZeroRateCont(in_TargetDate), ForwardRate(in_StartDate, in_EndDate) を返す
 - 評価日 ON、1M、2M、3M、6M、1Y、2Y…のOISレートからブートストラップ
 - 6M以降は3か月刻みの瞬間ONフォワード
 - 観測点間に複数の3M区間がある場合は、直前フォワード f_prev に対して、 f_prev + 1Δf, f_prev + 2Δf, ... として、Δfをブートストラップする
