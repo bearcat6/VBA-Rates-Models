@@ -1,0 +1,181 @@
+
+Option Explicit
+
+'============================================================
+' clsHolidayCalendar
+'
+' 役割：
+'   ・休日データを保持するだけのクラス
+'   ・営業日判定、営業日加算、Modified Following 等は
+'     modDateUtil 側で行う
+'
+' 設計方針：
+'   ・Dictionary は late binding
+'   ・参照設定 Microsoft Scripting Runtime は不要
+'   ・キーは CLng(Date) に統一
+'============================================================
+
+Private mHolidays As Object
+Private mIsInitialized As Boolean
+
+'------------------------------------------------------------
+' 初期化
+'------------------------------------------------------------
+Private Sub Class_Initialize()
+  Set mHolidays = CreateObject("Scripting.Dictionary")
+  mIsInitialized = True
+End Sub
+
+'------------------------------------------------------------
+' 休日データをクリア
+'------------------------------------------------------------
+Public Sub Clear()
+  
+  If mHolidays Is Nothing Then
+    Set mHolidays = CreateObject("Scripting.Dictionary")
+  Else
+    mHolidays.RemoveAll
+  End If
+  
+End Sub
+
+'------------------------------------------------------------
+' 休日を1日追加
+'------------------------------------------------------------
+Public Sub AddHoliday(ByVal in_Date As Date)
+  
+  Dim key As Long
+  key = CLng(DateValue(in_Date))
+  
+  If Not mHolidays.Exists(key) Then
+      mHolidays.Add key, True
+  End If
+  
+End Sub
+
+
+'------------------------------------------------------------
+' 休日配列を読み込む
+'
+' in_holidays:
+'   ・Excel Range.Value の2次元配列
+'   ・1次元配列
+'   ・単一の日付
+'   のいずれでも可
+'
+' 例：
+'   Dim holidays As Variant
+'   holidays = Worksheets("Holiday").Range("A1:A100").Value
+'
+'   cal.LoadHolidays holidays
+'
+' 注意：
+'   ・空白や日付でない値は無視
+'   ・既存休日は一度クリアする
+'------------------------------------------------------------
+Public Sub LoadHolidays(ByVal in_Holidays As Variant)
+  
+  Dim v As Variant
+  
+  Clear
+  
+  Dim n As Long
+  n = GetVariantItemCount(in_Holidays)
+  
+  Dim i As Long
+  For i = 1 To n
+    v = GetVariantItem(in_Holidays, i)
+    
+    If IsDate(v) Then
+        AddHoliday CDate(v)
+    End If
+  Next i
+  
+End Sub
+
+
+'------------------------------------------------------------
+' 休日かどうかを返す
+'
+' 注意：
+'   ・土日はここでは判定しない
+'   ・土日判定は modDateUtil.IsBusinessDayEx 側で行う
+'------------------------------------------------------------
+Public Function IsHoliday(ByVal in_Date As Date) As Boolean
+  
+  Dim key As Long
+  key = CLng(DateValue(in_Date))
+  
+  If mHolidays Is Nothing Then
+    IsHoliday = False
+  Else
+    IsHoliday = mHolidays.Exists(key)
+  End If
+  
+End Function
+
+'------------------------------------------------------------
+' 登録休日数
+'------------------------------------------------------------
+Public Property Get Count() As Long
+  
+  If mHolidays Is Nothing Then
+    Count = 0
+  Else
+    Count = mHolidays.Count
+  End If
+  
+End Property
+
+
+'============================================================
+' 内部関数：Variant配列の件数
+'
+' Excel Range.Value の2次元配列、1次元配列、単一値に対応
+'============================================================
+Private Function GetVariantItemCount(ByVal in_v As Variant) As Long
+
+  On Error GoTo SingleValue
+  
+  If IsArray(in_v) Then
+      GetVariantItemCount = UBound(in_v, 1) - LBound(in_v, 1) + 1
+  Else
+      GetVariantItemCount = 1
+  End If
+  
+  Exit Function
+  
+SingleValue:
+  GetVariantItemCount = 1
+
+End Function
+
+'============================================================
+' 内部関数：Variant配列からi番目を取得
+'
+' Excel Range.Value の2次元配列を優先
+'============================================================
+Private Function GetVariantItem(ByVal in_v As Variant, _
+                                ByVal in_index As Long) As Variant
+
+  On Error GoTo TryOneDim
+  
+  If IsArray(in_v) Then
+      GetVariantItem = in_v(LBound(in_v, 1) + in_index - 1, 1)
+  Else
+      GetVariantItem = in_v
+  End If
+  
+  Exit Function
+  
+TryOneDim:
+  On Error GoTo SingleValue
+  
+  GetVariantItem = in_v(LBound(in_v) + in_index - 1)
+  Exit Function
+  
+SingleValue:
+  GetVariantItem = in_v
+
+End Function
+
