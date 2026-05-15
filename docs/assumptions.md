@@ -27,7 +27,9 @@
 - M/Y は月加算として扱い、Y は 12M として処理する
 - 月加算は DateAdd("m") ではなく、EDate ベースで行う
 - 基準日が月末の場合は、原則として加算後も月末を維持する
+- テナー加算のみを行う関数と、テナー加算後に営業日調整を行う関数は分ける
 - テナー加算後に Business Day Convention を適用する
+- Excel VBA 上での利用を前提とし、EDate / EoMonth は WorksheetFunction を使用する
 
 ## Holiday Calendar
 - クラス名：clsHolidayCalendar
