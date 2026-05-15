@@ -1,0 +1,14 @@
+
+Option Explicit
+
+'//
+'// データの個数を行方向に数える
+'//
+Public Function GetvNumber(ByVal in_Range As Range) As Long
+    GetvNumber = 1
+    Do While in_Range.Cells(GetvNumber + 1, 1) <> ""
+        GetvNumber = GetvNumber + 1
+    Loop
+    GetvNumber = GetvNumber - 1
+End Function
+
