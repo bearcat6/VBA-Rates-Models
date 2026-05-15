@@ -42,5 +42,9 @@
 
 ## Cap Volatility
 - キャップボラは ATM Normal Volを前提
+- 対象は TONA変動金利にキャップが付いた商品評価を想定
+- ATM Strike は、対象Capの forward par rate を基本とする
 - Total Varianceベースで補間・Bootstrapする
+- Caplet単体のクラスは原則作らない
+- Bachelier式などの数式処理は標準モジュールに置く
 
