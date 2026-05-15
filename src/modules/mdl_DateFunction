@@ -1,0 +1,335 @@
+
+Option Explicit
+
+'============================================================
+' mdl_DateFunction
+'
+' 役割：
+'   ・営業日判定
+'   ・営業日加算
+'   ・Business Day Convention 調整
+'   ・テナー／期間文字列による日付計算
+'
+' 主な公開関数：
+'
+'   GetWorkday(
+'       基準日,
+'       営業日数,
+'       Optional 休日カレンダー
+'   )
+'
+'   GetBusinessDay(
+'       基準日,
+'       期間文字列,
+'       Optional BusinessDayConvention,
+'       Optional 休日カレンダー
+'   )
+'
+' BusinessDayConvention:
+'   "F"  or "Following"
+'   "MF" or "ModifiedFollowing"
+'   "P"  or "Preceding"
+'
+' 期間文字列:
+'   "+1D", "-2D", "3M", "+6M", "1Y", "-1Y"
+'
+' 注意：
+'   ・期間の絶対値は600以下
+'   ・GetWorkday の営業日数も絶対値600以下
+'============================================================
+
+Private Const MAX_SHIFT As Long = 600
+'
+
+'------------------------------------------------------------
+' 営業日判定
+'
+' 土日でなく、かつ休日カレンダー上の休日でなければ True
+'------------------------------------------------------------
+'
+Public Function IsBusinessDayEx(ByVal in_Date As Date, _
+                                Optional ByVal in_cCalendar As clsHolidayCalendar = Nothing) As Boolean
+  
+  Dim wd As VbDayOfWeek
+  wd = Weekday(in_Date, vbMonday)
+  
+  ' 土曜=6, 日曜=7
+  If wd >= 6 Then
+    IsBusinessDayEx = False
+    Exit Function
+  End If
+  
+  If Not in_cCalendar Is Nothing Then
+    If in_cCalendar.IsHoliday(in_Date) Then
+        IsBusinessDayEx = False
+        Exit Function
+    End If
+  End If
+  
+  IsBusinessDayEx = True
+  
+End Function
+
+'------------------------------------------------------------
+' 営業日数を加減算する
+'
+' in_businessDays:
+'   +2 なら2営業日後
+'   -2 なら2営業日前
+'   0 なら基準日が営業日かどうかに関係なく基準日を返す
+'
+' 注意：
+'   ・絶対値100まで
+'   ・基準日はカウントしない
+'------------------------------------------------------------
+Public Function GetWorkday(ByVal in_baseDate As Date, _
+                           ByVal in_businessDays As Long, _
+                           Optional ByVal in_cCalendar As clsHolidayCalendar = Nothing) As Date
+
+  Dim d As Date
+  Dim stepDir As Long
+  Dim cnt As Long
+  
+  If Abs(in_businessDays) > MAX_SHIFT Then
+      Err.Raise vbObjectError + 1001, _
+                "modDateUtil.GetWorkday", _
+                "営業日数は-100から+100までにしてください。"
+  End If
+  
+  If in_businessDays = 0 Then
+    GetWorkday = in_baseDate
+    Exit Function
+  End If
+  
+  If in_businessDays > 0 Then
+    stepDir = 1
+  Else
+    stepDir = -1
+  End If
+  
+  d = in_baseDate
+  cnt = 0
+  
+  Do While cnt < Abs(in_businessDays)
+    d = DateAdd("d", stepDir, d)
+    
+    If IsBusinessDayEx(d, in_cCalendar) Then
+        cnt = cnt + 1
+    End If
+  Loop
+  
+  GetWorkday = d
+  
+End Function
+
+'------------------------------------------------------------
+' 期間文字列で日付を進めたうえで、営業日調整する
+'
+' 例：
+'   GetBusinessDay(#2025/1/31#, "3M", "MF", cal)
+'   GetBusinessDay(#2025/1/31#, "+6M", "MF", cal)
+'   GetBusinessDay(#2025/1/31#, "-1Y", "P", cal)
+'
+' in_period:
+'   "+1D", "-2D", "3M", "+6M", "1Y", "-1Y"
+'
+' in_businessDayConvention:
+'   "F"  / "Following"
+'   "MF" / "ModifiedFollowing"
+'   "P"  / "Preceding"
+'
+' 注意：
+'   ・D は暦日加算
+'   ・営業日加算は GetWorkday を使う
+'------------------------------------------------------------
+Public Function GetBusinessDay(ByVal in_baseDate As Date, _
+                               ByVal in_period As String, _
+                               Optional ByVal in_BusinessDayConvention As String = "F", _
+                               Optional ByVal in_cCalendar As clsHolidayCalendar = Nothing) As Date
+
+  Dim num As Long
+  Dim unitChar As String
+  Dim unadjustedDate As Date
+  
+  Call ParsePeriod(in_period, num, unitChar)
+  
+  Select Case unitChar
+    Case "D"
+      unadjustedDate = DateAdd("d", num, in_baseDate)
+        
+    Case "M"
+      unadjustedDate = DateAdd("m", num, in_baseDate)
+        
+    Case "Y"
+      unadjustedDate = DateAdd("yyyy", num, in_baseDate)
+        
+    Case Else
+      Err.Raise vbObjectError + 1002, _
+                "modDateUtil.GetBusinessDay", _
+                "期間単位は D, M, Y のいずれかにしてください。"
+  End Select
+  
+  GetBusinessDay = AdjustBusinessDay(unadjustedDate, in_BusinessDayConvention, in_cCalendar)
+  
+End Function
+
+'------------------------------------------------------------
+' Business Day Convention を適用する
+'
+' Following:
+'   非営業日なら翌営業日
+'
+' Modified Following:
+'   非営業日なら翌営業日
+'   ただし月をまたぐ場合は前営業日
+'
+' Preceding:
+'   非営業日なら前営業日
+'------------------------------------------------------------
+Public Function AdjustBusinessDay(ByVal in_Date As Date, _
+                                  Optional ByVal in_BusinessDayConvention As String = "F", _
+                                  Optional ByVal in_Calendar As clsHolidayCalendar = Nothing) As Date
+
+  Dim conv As String
+  Dim d As Date
+  Dim followingDate As Date
+  
+  conv = NormalizeBusinessDayConvention(in_BusinessDayConvention)
+  
+  If IsBusinessDayEx(in_Date, in_Calendar) Then
+      AdjustBusinessDay = in_Date
+      Exit Function
+  End If
+  
+  Select Case conv
+
+    Case "F"
+      d = in_Date
+      Do
+          d = DateAdd("d", 1, d)
+      Loop Until IsBusinessDayEx(d, in_Calendar)
+      
+      AdjustBusinessDay = d
+    
+    Case "MF"
+      d = in_Date
+      Do
+          d = DateAdd("d", 1, d)
+      Loop Until IsBusinessDayEx(d, in_Calendar)
+      
+      followingDate = d
+      
+      If Month(followingDate) = Month(in_Date) Then
+          AdjustBusinessDay = followingDate
+      Else
+          d = in_Date
+          Do
+              d = DateAdd("d", -1, d)
+          Loop Until IsBusinessDayEx(d, in_Calendar)
+          
+          AdjustBusinessDay = d
+      End If
+    
+    Case "P"
+      d = in_Date
+      Do
+          d = DateAdd("d", -1, d)
+      Loop Until IsBusinessDayEx(d, in_Calendar)
+      
+      AdjustBusinessDay = d
+    
+    Case Else
+      Err.Raise vbObjectError + 1003, _
+                "modDateUtil.AdjustBusinessDay", _
+                "BusinessDayConvention は F, MF, P のいずれかにしてください。"
+  End Select
+  
+End Function
+
+'------------------------------------------------------------
+' Business Day Convention 文字列を正規化
+'------------------------------------------------------------
+Private Function NormalizeBusinessDayConvention(ByVal in_BusinessDayConvention As String) As String
+  
+  Dim s As String
+  s = UCase$(Trim$(in_BusinessDayConvention))
+  s = Replace(s, " ", "")
+  s = Replace(s, "_", "")
+  s = Replace(s, "-", "")
+  
+  Select Case s
+    Case "F", "FOLLOWING"
+      NormalizeBusinessDayConvention = "F"
+        
+    Case "MF", "MODIFIEDFOLLOWING"
+      NormalizeBusinessDayConvention = "MF"
+        
+    Case "P", "PRECEDING"
+      NormalizeBusinessDayConvention = "P"
+        
+    Case Else
+      Err.Raise vbObjectError + 1004, _
+                "modDateUtil.NormalizeBusinessDayConvention", _
+                "BusinessDayConvention は F, Following, MF, ModifiedFollowing, P, Preceding のいずれかにしてください。"
+  End Select
+  
+End Function
+
+'------------------------------------------------------------
+' 期間文字列を数値と単位に分解する
+'
+' 例：
+'   "3M"   ->  3, "M"
+'   "+3M"  ->  3, "M"
+'   "-2D"  -> -2, "D"
+'   "1Y"   ->  1, "Y"
+'
+' 制約：
+'   ・単位は D, M, Y
+'   ・数値部分は整数
+'   ・絶対値100以下
+'------------------------------------------------------------
+Private Sub ParsePeriod(ByVal in_period As String, _
+                        ByRef out_number As Long, _
+                        ByRef out_unitChar As String)
+
+  Dim s As String
+  Dim numPart As String
+  Dim unitPart As String
+  
+  s = UCase$(Trim$(in_period))
+  s = Replace(s, " ", "")
+  
+  If Len(s) < 2 Then
+    Err.Raise vbObjectError + 1005, _
+              "modDateUtil.ParsePeriod", _
+              "期間は 3M, +6M, -1Y のように指定してください。"
+  End If
+  
+  unitPart = Right$(s, 1)
+  numPart = Left$(s, Len(s) - 1)
+  
+  If unitPart <> "D" And unitPart <> "M" And unitPart <> "Y" Then
+    Err.Raise vbObjectError + 1006, _
+              "modDateUtil.ParsePeriod", _
+              "期間単位は D, M, Y のいずれかにしてください。"
+  End If
+  
+  If Not IsNumeric(numPart) Then
+    Err.Raise vbObjectError + 1007, _
+              "modDateUtil.ParsePeriod", _
+              "期間の数値部分が不正です。例：3M, +6M, -1Y"
+  End If
+  
+  out_number = CLng(numPart)
+  
+  If Abs(out_number) > MAX_SHIFT Then
+    Err.Raise vbObjectError + 1008, _
+              "modDateUtil.ParsePeriod", _
+              "期間の絶対値は600以下にしてください。"
+  End If
+  
+  out_unitChar = unitPart
+  
+End Sub
+
