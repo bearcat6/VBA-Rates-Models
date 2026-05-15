@@ -1,23 +1,8 @@
-# VBA-Rates-Models
-JPY OIS, Cap Volatility, Swaption Volatility and CMS Valuation VBA prototypes
+# VBA Rates Models
 
-## 目的
-TONA/OISカーブ、キャップボラ、スワップションボラ、CMS評価のVBAコードを試作する。
+VBA prototypes for JPY rates analytics, including OIS curve construction,
+cap volatility bootstrapping, swaption volatility interpolation, and CMS-related valuation utilities.
 
-## 管理方針
-- 最新版コードをGistに置く
-- ChatGPTには、修正したいファイルだけ貼る
-- 前提条件はこのREADMEに残す
-
-GitHub イメージ図
-└─ Repository（プロジェクトの箱）
-   ├─ README.md
-   ├─ docs/
-   │  └─ assumptions.md
-   └─ src/
-      ├─ classes/
-      │  ├─ CHolidayCalendar.cls
-      │  └─ COISStepForwardCurve.cls
-      └─ modules/
-         ├─ mdlDateUtils.bas
-         └─ mdlBachelier.bas
+This repository is for educational and prototyping purposes only.
+All sample data are fictional.
+No proprietary or confidential data are included.
