@@ -13,6 +13,7 @@
 ## Holiday Calendaer
 - クラス名：clsHolidayCalendar
 - IsHoliday(day) を返す
+- business day convention の判定は別の関数で
 
 ## Discount Curve (OIS Curve)
 - クラス名：clsOISStepForwardCurve
