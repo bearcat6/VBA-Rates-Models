@@ -14,6 +14,20 @@
 - 営業日調整の既定値は Modified Following
 - ただし、将来的に Following / Preceding 等へ拡張できる設計とする
 - Excel関数として利用する場合を考慮し、Enumだけに依存しすぎない
+- Business Day Convention は文字列でも指定可能とする
+  - "F" / "Following"
+  - "MF" / "ModifiedFollowing"
+  - "P" / "Preceding"
+- 営業日判定は、土日判定と clsHolidayCalendar の休日判定を組み合わせて行う
+- 営業日加算では、基準日はカウントしない
+
+## Tenor Date Calculation
+- テナー文字列は、"+1D", "-2D", "3M", "+6M", "1Y", "-1Y" の形式を基本とする
+- D は暦日加算とする
+- M/Y は月加算として扱い、Y は 12M として処理する
+- 月加算は DateAdd("m") ではなく、EDate ベースで行う
+- 基準日が月末の場合は、原則として加算後も月末を維持する
+- テナー加算後に Business Day Convention を適用する
 
 ## Holiday Calendar
 - クラス名：clsHolidayCalendar
