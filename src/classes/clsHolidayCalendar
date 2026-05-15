@@ -5,14 +5,14 @@ Option Explicit
 ' clsHolidayCalendar
 '
 ' 役割：
-'   ・休日データを保持するだけのクラス
-'   ・土日を含む営業日判定、営業日加算、Modified Following 等は
-'     mdl_BusinessDay 側で行う
+'  ・休日データを保持するだけのクラス
+'  ・土日を含む営業日判定、営業日加算、Modified Following 等は
+'    mdl_BusinessDay 側で行う
 '
 ' 設計方針：
-'   ・Dictionary は late binding
-'   ・参照設定 Microsoft Scripting Runtime は不要
-'   ・キーは CLng(Date) に統一
+'  ・Dictionary は late binding
+'  ・参照設定 Microsoft Scripting Runtime は不要
+'   ・キーは CLng(DateValue(date)) に統一
 '============================================================
 
 Private mHolidays As Object
@@ -69,6 +69,7 @@ End Sub
 '   cal.LoadHolidays holidays
 '
 ' 注意：
+'   ・LoadHolidays 実行時は、既存休日をクリアし、入力データを正とする
 '   ・空白や日付でない値は無視
 '   ・既存休日は一度クリアする
 '------------------------------------------------------------
@@ -113,6 +114,22 @@ Public Function IsHoliday(ByVal in_TargetDate As Date) As Boolean
   
 End Function
 
+
+Public Function HolidayName(ByVal in_TargetDate As Date) As String
+
+  Dim key As Long
+  key = CLng(DateValue(in_TargetDate))
+
+  If mHolidays Is Nothing Then
+    HolidayName = ""
+  ElseIf mHolidays.Exists(key) Then
+    HolidayName = CStr(mHolidays.Item(key))
+  Else
+    HolidayName = ""
+  End If
+
+End Function
+
 '------------------------------------------------------------
 ' 登録休日数
 '------------------------------------------------------------
@@ -148,6 +165,7 @@ SingleValue:
   GetVariantItemCount = 1
 
 End Function
+
 
 '============================================================
 ' 内部関数：Variant配列からi番目を取得
