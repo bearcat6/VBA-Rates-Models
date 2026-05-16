@@ -44,7 +44,6 @@ Private mSegFwd() As Double
 
 Private mIsInitialized As Boolean
 
-Private Const BASIS_ACT365F As Double = 365#
 Private Const ROOT_TOL As Double = 0.000000000001
 Private Const ROOT_MAX_ITER As Long = 100
 
@@ -275,20 +274,6 @@ Public Function ForwardRate( _
 
 End Function
 
-'============================================================
-' 旧名互換用
-'
-' clsOISSwap 側を ForwardRate に直すまでの暫定互換。
-' 後続修正後に削除可能。
-'============================================================
-Public Function ForwardRateBetween( _
-  ByVal in_StartDate As Date, _
-  ByVal in_EndDate As Date _
-) As Double
-
-  ForwardRateBetween = ForwardRate(in_StartDate, in_EndDate)
-
-End Function
 
 '============================================================
 ' Quote配列からカーブを構築
@@ -299,10 +284,8 @@ End Function
 ' in_rates:
 '   OISレート
 '============================================================
-Public Sub BuildFromQuotes( _
-  ByVal in_Tenors As Variant, _
-  ByVal in_Rates As Variant _
-)
+Public Sub BuildFromQuotes(ByVal in_Tenors As Variant, _
+                           ByVal in_Rates As Variant)
 
   Dim onRate As Double
   Dim quoteMonths() As Long
