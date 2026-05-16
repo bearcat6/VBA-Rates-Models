@@ -30,7 +30,8 @@ Option Explicit
 '   ・FixedLegPV / FloatingLegPV は脚単体のPVを正値で返す
 '   ・NPV は PayReceive に応じて符号を反映する
 '   ・ParRate は PayReceive に依存しない
-'   ・カーブはブートストラップ中の仮カーブでも使えるよう Object として受ける
+'   ・カーブは clsDiscountCurve インターフェースとして受ける
+'   ・具体的なカーブ構築方法には依存しない
 '   ・curve は少なくとも以下の関数を持つ想定
 '     DF(in_TargetDate As Date) As Double
 '     ForwardRate(in_StartDate As Date, in_EndDate As Date) As Double
