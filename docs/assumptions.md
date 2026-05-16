@@ -83,10 +83,20 @@
 - 8Mなど中途半端なテナーは無視
 
 ## Cap Volatility
-- キャップボラは ATM Normal Volを前提
-- 対象は TONA変動金利にキャップが付いた商品評価を想定
-- ATM Strike は、対象Capの forward par rate を基本とする
-- Total Varianceベースで補間・Bootstrapする
-- Caplet単体のクラスは原則作らない
-- Bachelier式などの数式処理は標準モジュールに置く
+
+- 目的は、Cap取引そのものの評価ではなく、TONA 6M 等の caplet 部分を評価するための caplet normal volatility term structure を構築することである
+- キャップボラは ATM Normal Vol を前提とする
+- 対象は、OIS / TONA ベースの変動金利に上限が付いた商品の caplet 部分評価を想定する
+- ATM Strike は、対象となる forward rate または評価対象商品の条件に応じた strike を使用する
+- Caplet単体のクラスは作成しない
+- Cap取引を表す clsCap も作成しない
+- Quoted cap normal vol は、複数capletの合計価格を表す入力として扱う
+- Bootstrapper は、quoted cap normal vol から期間別 caplet normal vol を逆算する
+- Bootstrap後の caplet normal vol は clsCapVolTermStructure に格納する
+- Bachelier式などの数式処理は標準モジュール `mdl_CapFormula` に置く
+- ACT/365 Fixed の YearFrac は `mdl_Common.YearFracAct365F` に統一する
+- Normal Vol は絶対値表記とする
+  - 例：40bp normal vol = 0.0040
+- 時間方向は total variance ベースで管理する
+  - Total Variance = Σ normalVol_i^2 × yearFraction_i
 
