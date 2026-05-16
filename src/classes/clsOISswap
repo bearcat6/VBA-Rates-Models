@@ -180,7 +180,7 @@ Public Function FixedLegPV(ByVal in_cCurve As Object) As Double
   Dim n As Long
   Dim accrualYearFrac As Double
   Dim payDate As Date
-  Dim dfPay As Double
+  Dim DFPay As Double
   Dim pv As Double
 
   CheckInitialized
@@ -195,9 +195,9 @@ Public Function FixedLegPV(ByVal in_cCurve As Object) As Double
     accrualYearFrac = CDbl(cf(i, 4))
     payDate = CDate(cf(i, 3))
 
-    dfPay = in_cCurve.DF(payDate)
+    DFPay = in_cCurve.DF(payDate)
 
-    pv = pv + mNotional * mFixedRate * accrualYearFrac * dfPay
+    pv = pv + mNotional * mFixedRate * accrualYearFrac * DFPay
   Next i
 
   FixedLegPV = pv
@@ -230,7 +230,7 @@ Public Function FloatingLegPV(ByVal in_cCurve As Object) As Double
   Dim payDate As Date
   Dim accrualYearFrac As Double
   Dim fwdRate As Double
-  Dim dfPay As Double
+  Dim DFPay As Double
   Dim pv As Double
 
   CheckInitialized
@@ -248,9 +248,9 @@ Public Function FloatingLegPV(ByVal in_cCurve As Object) As Double
     accrualYearFrac = CDbl(cf(i, 4))
 
     fwdRate = in_cCurve.ForwardRate(periodStart, periodEnd)
-    dfPay = in_cCurve.df(payDate)
+    DFPay = in_cCurve.DF(payDate)
 
-    pv = pv + mNotional * fwdRate * accrualYearFrac * dfPay
+    pv = pv + mNotional * fwdRate * accrualYearFrac * DFPay
   Next i
 
   FloatingLegPV = pv
@@ -313,7 +313,7 @@ Public Function ParRate(ByVal in_cCurve As Object) As Double
   Dim n As Long
   Dim accrualYearFrac As Double
   Dim payDate As Date
-  Dim dfPay As Double
+  Dim DFPay As Double
   Dim annuity As Double
   Dim floatPV As Double
 
@@ -328,9 +328,9 @@ Public Function ParRate(ByVal in_cCurve As Object) As Double
   For i = 1 To n
     accrualYearFrac = CDbl(cf(i, 4))
     payDate = CDate(cf(i, 3))
-    dfPay = in_cCurve.df(payDate)
+    DFPay = in_cCurve.DF(payDate)
 
-    annuity = annuity + mNotional * accrualYearFrac * dfPay
+    annuity = annuity + mNotional * accrualYearFrac * DFPay
   Next i
 
   If annuity = 0# Then
@@ -388,7 +388,7 @@ Public Function GetCashflowTable(Optional ByVal in_cCurve As Object = Nothing) A
   Dim yearFrac As Double
 
   Dim fwdRate As Variant
-  Dim dfPay As Variant
+  Dim DFPay As Variant
   Dim fixedAmount As Variant
   Dim floatingAmount As Variant
   Dim fixedPV As Variant
@@ -428,19 +428,19 @@ Public Function GetCashflowTable(Optional ByVal in_cCurve As Object = Nothing) A
 
     If in_cCurve Is Nothing Then
       fwdRate = Empty
-      dfPay = Empty
+      DFPay = Empty
       floatingAmount = Empty
       fixedPV = Empty
       floatingPV = Empty
       netPV = Empty
     Else
       fwdRate = in_cCurve.ForwardRate(periodStart, periodEnd)
-      dfPay = in_cCurve.df(payDate)
+      DFPay = in_cCurve.DF(payDate)
 
       floatingAmount = mNotional * CDbl(fwdRate) * yearFrac
 
-      fixedPV = CDbl(fixedAmount) * CDbl(dfPay)
-      floatingPV = CDbl(floatingAmount) * CDbl(dfPay)
+      fixedPV = CDbl(fixedAmount) * CDbl(DFPay)
+      floatingPV = CDbl(floatingAmount) * CDbl(DFPay)
 
       Select Case mPayReceive
         Case "PAYER"
@@ -464,7 +464,7 @@ Public Function GetCashflowTable(Optional ByVal in_cCurve As Object = Nothing) A
     result(i + 1, 6) = mPayReceive
     result(i + 1, 7) = mFixedRate
     result(i + 1, 8) = fwdRate
-    result(i + 1, 9) = dfPay
+    result(i + 1, 9) = DFPay
     result(i + 1, 10) = fixedAmount
     result(i + 1, 11) = floatingAmount
     result(i + 1, 12) = fixedPV
