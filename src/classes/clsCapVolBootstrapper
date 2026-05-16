@@ -20,6 +20,13 @@ Option Explicit
 '   - The discount curve must expose:
 '       DF(in_TargetDate)
 '       ForwardRate(in_StartDate, in_EndDate)
+'
+' Bootstrap logic:
+'   - For each quoted cap maturity, all newly added caplet periods
+'     between the previous quote maturity and current quote maturity
+'     are solved as one bucket vol.
+'   - This avoids trying to solve multiple individual caplet vols from
+'     one cap quote, which is underdetermined.
 '============================================================
 
 Private mValDate As Date
@@ -188,17 +195,6 @@ End Property
 
 '============================================================
 ' Bootstrap
-'
-' Input:
-'   in_CapMaturityDates : cap maturity dates
-'   in_CapNormalVols    : quoted cap normal vols
-'
-' Output:
-'   clsCapVolTermStructure
-'
-' Important:
-'   The cap maturity dates should be sorted ascending.
-'   If not, this method sorts them internally.
 '============================================================
 Public Function Bootstrap( _
   ByRef in_CapMaturityDates() As Date, _
@@ -214,7 +210,12 @@ Public Function Bootstrap( _
 
   CheckInitialized
 
-  Call CopyAndSortQuotes(in_CapMaturityDates, in_CapNormalVols, maturityDates, capVols, quoteCount)
+  Call CopyAndSortQuotes( _
+    in_CapMaturityDates, _
+    in_CapNormalVols, _
+    maturityDates, _
+    capVols, _
+    quoteCount)
 
   Set cVolTS = New clsCapVolTermStructure
   cVolTS.Init mValDate
@@ -229,6 +230,13 @@ End Function
 
 '============================================================
 ' Bootstrap one cap quote
+'
+' For one quoted cap maturity:
+'   1. Generate all caplet periods up to maturity
+'   2. Price the cap using flat quoted cap vol
+'   3. Find periods not yet stored in vol term structure
+'   4. Solve one bucket vol for all newly added periods
+'   5. Store the solved bucket vol to all new periods
 '============================================================
 Private Sub BootstrapOneCapQuote( _
   ByVal in_cVolTS As clsCapVolTermStructure, _
@@ -236,14 +244,18 @@ Private Sub BootstrapOneCapQuote( _
   ByVal in_CapNormalVol As Double _
 )
 
-  Dim schedule As Collection
+  Dim periodCount As Long
+  Dim periodStarts() As Date
+  Dim periodEnds() As Date
+  Dim fixingDates() As Date
+  Dim paymentDates() As Date
+  Dim isNewPeriod() As Boolean
+
   Dim targetPrice As Double
   Dim solvedVol As Double
 
   Dim i As Long
-  Dim periodInfo As Variant
-  Dim periodStart As Date
-  Dim periodEnd As Date
+  Dim newCount As Long
 
   If in_CapNormalVol < 0# Then
     Err.Raise vbObjectError + 5221, _
@@ -251,72 +263,108 @@ Private Sub BootstrapOneCapQuote( _
       "Cap normal vol は0以上にしてください。"
   End If
 
-  If in_MaturityDate <= mStartDate Then
+  If DateValue(in_MaturityDate) <= mStartDate Then
     Err.Raise vbObjectError + 5222, _
       "clsCapVolBootstrapper.BootstrapOneCapQuote", _
       "MaturityDate は StartDate より後の日付にしてください。"
   End If
 
-  Set schedule = GenerateCapletSchedule(mStartDate, in_MaturityDate)
+  Call GenerateCapletSchedule( _
+    mStartDate, _
+    DateValue(in_MaturityDate), _
+    periodCount, _
+    periodStarts, _
+    periodEnds, _
+    fixingDates, _
+    paymentDates)
 
-  targetPrice = PriceCapletsWithFlatVol(schedule, in_CapNormalVol)
+  If periodCount <= 0 Then
+    Exit Sub
+  End If
 
-  For i = 1 To schedule.Count
+  ReDim isNewPeriod(1 To periodCount)
 
-    periodInfo = schedule(i)
+  newCount = 0
 
-    periodStart = CDate(periodInfo(0))
-    periodEnd = CDate(periodInfo(1))
+  For i = 1 To periodCount
 
-    If periodStart <= mValDate Then
-      GoTo ContinueLoop
+    If fixingDates(i) <= mValDate Then
+      isNewPeriod(i) = False
+    ElseIf in_cVolTS.HasNormalVolByPeriodEnd(periodEnds(i)) Then
+      isNewPeriod(i) = False
+    Else
+      isNewPeriod(i) = True
+      newCount = newCount + 1
     End If
 
-    If Not in_cVolTS.HasNormalVolByPeriodEnd(periodEnd) Then
+  Next i
 
-      solvedVol = SolveNewPeriodVol( _
-                    schedule, _
-                    in_cVolTS, _
-                    targetPrice, _
-                    periodEnd)
+  If newCount = 0 Then
+    Exit Sub
+  End If
 
+  targetPrice = PriceCapletsWithFlatVol( _
+                  periodCount, _
+                  periodStarts, _
+                  periodEnds, _
+                  fixingDates, _
+                  paymentDates, _
+                  in_CapNormalVol)
+
+  solvedVol = SolveNewBucketVol( _
+                periodCount, _
+                periodStarts, _
+                periodEnds, _
+                fixingDates, _
+                paymentDates, _
+                isNewPeriod, _
+                in_cVolTS, _
+                targetPrice)
+
+  For i = 1 To periodCount
+
+    If isNewPeriod(i) Then
       in_cVolTS.AddCapletVol _
-        periodStart, _
-        periodEnd, _
-        CDate(periodInfo(2)), _
-        CDate(periodInfo(3)), _
+        periodStarts(i), _
+        periodEnds(i), _
+        fixingDates(i), _
+        paymentDates(i), _
         solvedVol
-
     End If
 
-ContinueLoop:
   Next i
 
 End Sub
 
 '============================================================
-' Price quoted cap by applying one flat vol to all caplets
+' Price caplets using one flat normal vol
 '============================================================
 Private Function PriceCapletsWithFlatVol( _
-  ByVal in_Schedule As Collection, _
+  ByVal in_PeriodCount As Long, _
+  ByRef in_PeriodStarts() As Date, _
+  ByRef in_PeriodEnds() As Date, _
+  ByRef in_FixingDates() As Date, _
+  ByRef in_PaymentDates() As Date, _
   ByVal in_NormalVol As Double _
 ) As Double
 
-  Dim pv As Double
   Dim i As Long
-  Dim periodInfo As Variant
+  Dim pv As Double
 
   pv = 0#
 
-  For i = 1 To in_Schedule.Count
+  For i = 1 To in_PeriodCount
 
-    periodInfo = in_Schedule(i)
-
-    If CDate(periodInfo(2)) <= mValDate Then
+    If in_FixingDates(i) <= mValDate Then
       GoTo ContinueLoop
     End If
 
-    pv = pv + CapletPVFromPeriodInfo(periodInfo, in_NormalVol)
+    pv = pv + CapletPVFromDates( _
+                in_PeriodStarts(i), _
+                in_PeriodEnds(i), _
+                in_FixingDates(i), _
+                in_PaymentDates(i), _
+                in_NormalVol)
 
 ContinueLoop:
   Next i
@@ -326,59 +374,69 @@ ContinueLoop:
 End Function
 
 '============================================================
-' Price using existing vols and one temporary new vol
+' Price caplets using existing vols + one bucket vol
+'
+' in_IsNewPeriod(i) = True:
+'   use in_NewVol
+'
+' in_IsNewPeriod(i) = False:
+'   use existing vol term structure
 '============================================================
-Private Function PriceCapletsWithTemporaryVol( _
-  ByVal in_Schedule As Collection, _
+Private Function PriceCapletsWithBucketVol( _
+  ByVal in_PeriodCount As Long, _
+  ByRef in_PeriodStarts() As Date, _
+  ByRef in_PeriodEnds() As Date, _
+  ByRef in_FixingDates() As Date, _
+  ByRef in_PaymentDates() As Date, _
+  ByRef in_IsNewPeriod() As Boolean, _
   ByVal in_cExistingVolTS As clsCapVolTermStructure, _
-  ByVal in_NewPeriodEnd As Date, _
   ByVal in_NewVol As Double _
 ) As Double
 
-  Dim pv As Double
   Dim i As Long
-  Dim periodInfo As Variant
-
-  Dim periodEnd As Date
-  Dim fixingDate As Date
+  Dim pv As Double
   Dim normalVol As Double
 
   pv = 0#
 
-  For i = 1 To in_Schedule.Count
+  For i = 1 To in_PeriodCount
 
-    periodInfo = in_Schedule(i)
-
-    periodEnd = CDate(periodInfo(1))
-    fixingDate = CDate(periodInfo(2))
-
-    If fixingDate <= mValDate Then
+    If in_FixingDates(i) <= mValDate Then
       GoTo ContinueLoop
     End If
 
-    If periodEnd = in_NewPeriodEnd Then
+    If in_IsNewPeriod(i) Then
       normalVol = in_NewVol
     Else
-      normalVol = in_cExistingVolTS.GetNormalVolByPeriodEnd(periodEnd)
+      normalVol = in_cExistingVolTS.GetNormalVolByPeriodEnd(in_PeriodEnds(i))
     End If
 
-    pv = pv + CapletPVFromPeriodInfo(periodInfo, normalVol)
+    pv = pv + CapletPVFromDates( _
+                in_PeriodStarts(i), _
+                in_PeriodEnds(i), _
+                in_FixingDates(i), _
+                in_PaymentDates(i), _
+                normalVol)
 
 ContinueLoop:
   Next i
 
-  PriceCapletsWithTemporaryVol = pv
+  PriceCapletsWithBucketVol = pv
 
 End Function
 
 '============================================================
-' Solve new caplet vol by bisection
+' Solve bucket vol by bisection
 '============================================================
-Private Function SolveNewPeriodVol( _
-  ByVal in_Schedule As Collection, _
+Private Function SolveNewBucketVol( _
+  ByVal in_PeriodCount As Long, _
+  ByRef in_PeriodStarts() As Date, _
+  ByRef in_PeriodEnds() As Date, _
+  ByRef in_FixingDates() As Date, _
+  ByRef in_PaymentDates() As Date, _
+  ByRef in_IsNewPeriod() As Boolean, _
   ByVal in_cExistingVolTS As clsCapVolTermStructure, _
-  ByVal in_TargetPrice As Double, _
-  ByVal in_NewPeriodEnd As Date _
+  ByVal in_TargetPrice As Double _
 ) As Double
 
   Dim lowVol As Double
@@ -394,16 +452,24 @@ Private Function SolveNewPeriodVol( _
   lowVol = 0#
   highVol = mHighVolInitial
 
-  priceLow = PriceCapletsWithTemporaryVol( _
-              in_Schedule, _
+  priceLow = PriceCapletsWithBucketVol( _
+              in_PeriodCount, _
+              in_PeriodStarts, _
+              in_PeriodEnds, _
+              in_FixingDates, _
+              in_PaymentDates, _
+              in_IsNewPeriod, _
               in_cExistingVolTS, _
-              in_NewPeriodEnd, _
               lowVol)
 
-  priceHigh = PriceCapletsWithTemporaryVol( _
-                in_Schedule, _
+  priceHigh = PriceCapletsWithBucketVol( _
+                in_PeriodCount, _
+                in_PeriodStarts, _
+                in_PeriodEnds, _
+                in_FixingDates, _
+                in_PaymentDates, _
+                in_IsNewPeriod, _
                 in_cExistingVolTS, _
-                in_NewPeriodEnd, _
                 highVol)
 
   Do While priceHigh < in_TargetPrice And highVol < mHighVolMax
@@ -414,34 +480,44 @@ Private Function SolveNewPeriodVol( _
       highVol = mHighVolMax
     End If
 
-    priceHigh = PriceCapletsWithTemporaryVol( _
-                  in_Schedule, _
+    priceHigh = PriceCapletsWithBucketVol( _
+                  in_PeriodCount, _
+                  in_PeriodStarts, _
+                  in_PeriodEnds, _
+                  in_FixingDates, _
+                  in_PaymentDates, _
+                  in_IsNewPeriod, _
                   in_cExistingVolTS, _
-                  in_NewPeriodEnd, _
                   highVol)
 
   Loop
 
   If in_TargetPrice < priceLow - mRootTol Then
     Err.Raise vbObjectError + 5231, _
-      "clsCapVolBootstrapper.SolveNewPeriodVol", _
+      "clsCapVolBootstrapper.SolveNewBucketVol", _
       "Target price が lowVol=0 の価格を下回っています。入力volまたはstrikeを確認してください。"
   End If
 
   If priceHigh < in_TargetPrice - mRootTol Then
     Err.Raise vbObjectError + 5232, _
-      "clsCapVolBootstrapper.SolveNewPeriodVol", _
+      "clsCapVolBootstrapper.SolveNewBucketVol", _
       "Upper vol でも target price に到達できません。HighVolMax を引き上げてください。"
   End If
+
+  midVol = 0.5 * (lowVol + highVol)
 
   For k = 1 To mRootMaxIter
 
     midVol = 0.5 * (lowVol + highVol)
 
-    priceMid = PriceCapletsWithTemporaryVol( _
-                  in_Schedule, _
+    priceMid = PriceCapletsWithBucketVol( _
+                  in_PeriodCount, _
+                  in_PeriodStarts, _
+                  in_PeriodEnds, _
+                  in_FixingDates, _
+                  in_PaymentDates, _
+                  in_IsNewPeriod, _
                   in_cExistingVolTS, _
-                  in_NewPeriodEnd, _
                   midVol)
 
     If Abs(priceMid - in_TargetPrice) < mRootTol Then
@@ -456,81 +532,73 @@ Private Function SolveNewPeriodVol( _
 
   Next k
 
-  SolveNewPeriodVol = midVol
+  SolveNewBucketVol = midVol
 
 End Function
 
 '============================================================
-' Caplet PV from period info
-'
-' periodInfo:
-'   0: periodStart
-'   1: periodEnd
-'   2: fixingDate
-'   3: paymentDate
+' Caplet PV from dates
 '============================================================
-Private Function CapletPVFromPeriodInfo( _
-  ByVal in_PeriodInfo As Variant, _
+Private Function CapletPVFromDates( _
+  ByVal in_PeriodStart As Date, _
+  ByVal in_PeriodEnd As Date, _
+  ByVal in_FixingDate As Date, _
+  ByVal in_PaymentDate As Date, _
   ByVal in_NormalVol As Double _
 ) As Double
-
-  Dim periodStart As Date
-  Dim periodEnd As Date
-  Dim fixingDate As Date
-  Dim paymentDate As Date
 
   Dim forwardRate As Double
   Dim expiryYear As Double
   Dim accrualYear As Double
   Dim df As Double
 
-  periodStart = CDate(in_PeriodInfo(0))
-  periodEnd = CDate(in_PeriodInfo(1))
-  fixingDate = CDate(in_PeriodInfo(2))
-  paymentDate = CDate(in_PeriodInfo(3))
+  forwardRate = mCurve.forwardRate(in_PeriodStart, in_PeriodEnd)
+  expiryYear = YearFracAct365F(mValDate, in_FixingDate)
+  accrualYear = YearFracAct365F(in_PeriodStart, in_PeriodEnd)
+  df = mCurve.df(in_PaymentDate)
 
-  forwardRate = mCurve.forwardRate(periodStart, periodEnd)
-  expiryYear = YearFracAct365F(mValDate, fixingDate)
-  accrualYear = YearFracAct365F(periodStart, periodEnd)
-  df = mCurve.df(paymentDate)
-
-  CapletPVFromPeriodInfo = CapletPV_Normal( _
-                            forwardRate, _
-                            mStrike, _
-                            in_NormalVol, _
-                            expiryYear, _
-                            accrualYear, _
-                            df, _
-                            mNotional)
+  CapletPVFromDates = CapletPV_Normal( _
+                       forwardRate, _
+                       mStrike, _
+                       in_NormalVol, _
+                       expiryYear, _
+                       accrualYear, _
+                       df, _
+                       mNotional)
 
 End Function
 
 '============================================================
 ' Generate caplet schedule
 '
-' Each item in Collection is a Variant array:
-'   0: periodStart
-'   1: periodEnd
-'   2: fixingDate
-'   3: paymentDate
+' Output arrays are 1-based.
 '
-' Current convention:
+' Convention:
 '   fixingDate  = periodStart
 '   paymentDate = periodEnd + payment lag business days
 '============================================================
-Private Function GenerateCapletSchedule( _
+Private Sub GenerateCapletSchedule( _
   ByVal in_StartDate As Date, _
-  ByVal in_MaturityDate As Date _
-) As Collection
+  ByVal in_MaturityDate As Date, _
+  ByRef out_PeriodCount As Long, _
+  ByRef out_PeriodStarts() As Date, _
+  ByRef out_PeriodEnds() As Date, _
+  ByRef out_FixingDates() As Date, _
+  ByRef out_PaymentDates() As Date _
+)
 
-  Dim result As Collection
   Dim periodStart As Date
   Dim periodEnd As Date
   Dim nextEnd As Date
   Dim fixingDate As Date
   Dim paymentDate As Date
 
-  Set result = New Collection
+  out_PeriodCount = 0
+
+  Erase out_PeriodStarts
+  Erase out_PeriodEnds
+  Erase out_FixingDates
+  Erase out_PaymentDates
 
   periodStart = DateValue(in_StartDate)
   in_MaturityDate = DateValue(in_MaturityDate)
@@ -559,15 +627,23 @@ Private Function GenerateCapletSchedule( _
     fixingDate = periodStart
     paymentDate = AddBusinessDays(periodEnd, mPaymentLag, mCalendar)
 
-    result.Add Array(periodStart, periodEnd, fixingDate, paymentDate)
+    out_PeriodCount = out_PeriodCount + 1
+
+    ReDim Preserve out_PeriodStarts(1 To out_PeriodCount)
+    ReDim Preserve out_PeriodEnds(1 To out_PeriodCount)
+    ReDim Preserve out_FixingDates(1 To out_PeriodCount)
+    ReDim Preserve out_PaymentDates(1 To out_PeriodCount)
+
+    out_PeriodStarts(out_PeriodCount) = periodStart
+    out_PeriodEnds(out_PeriodCount) = periodEnd
+    out_FixingDates(out_PeriodCount) = fixingDate
+    out_PaymentDates(out_PeriodCount) = paymentDate
 
     periodStart = periodEnd
 
   Loop
 
-  Set GenerateCapletSchedule = result
-
-End Function
+End Sub
 
 '============================================================
 ' Copy and sort quote arrays
@@ -615,14 +691,22 @@ Private Sub CopyAndSortQuotes( _
   ReDim out_CapNormalVols(1 To out_Count)
 
   For i = 1 To out_Count
+
     out_MaturityDates(i) = DateValue(in_CapMaturityDates(lbD + i - 1))
     out_CapNormalVols(i) = in_CapNormalVols(lbV + i - 1)
 
-    If out_CapNormalVols(i) < 0# Then
+    If out_MaturityDates(i) <= mStartDate Then
       Err.Raise vbObjectError + 5253, _
+        "clsCapVolBootstrapper.CopyAndSortQuotes", _
+        "Cap maturity date は StartDate より後の日付にしてください。"
+    End If
+
+    If out_CapNormalVols(i) < 0# Then
+      Err.Raise vbObjectError + 5254, _
         "clsCapVolBootstrapper.CopyAndSortQuotes", _
         "Cap normal vol は0以上にしてください。"
     End If
+
   Next i
 
   ' Simple ascending sort by maturity date
@@ -646,7 +730,7 @@ Private Sub CopyAndSortQuotes( _
 
   For i = 2 To out_Count
     If out_MaturityDates(i) = out_MaturityDates(i - 1) Then
-      Err.Raise vbObjectError + 5254, _
+      Err.Raise vbObjectError + 5255, _
         "clsCapVolBootstrapper.CopyAndSortQuotes", _
         "同じ maturity date の quote が重複しています: " & CStr(out_MaturityDates(i))
     End If
