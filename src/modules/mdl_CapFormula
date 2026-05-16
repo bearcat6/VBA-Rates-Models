@@ -1,0 +1,54 @@
+
+Option Explicit
+
+'====================================================
+' Module: MCapDateUtils
+' Purpose:
+'   Simple date utilities for cap schedules
+'====================================================
+
+Public Function YearFrac_ACT365( _
+    ByVal d1 As Date, _
+    ByVal d2 As Date _
+) As Double
+
+    YearFrac_ACT365 = CDbl(d2 - d1) / 365#
+
+End Function
+
+Public Function AddMonthsSimple( _
+    ByVal baseDate As Date, _
+    ByVal months As Long _
+) As Date
+
+    AddMonthsSimple = DateAdd("m", months, baseDate)
+
+End Function
+
+Public Function GenerateRegularSchedule( _
+    ByVal StartDate As Date, _
+    ByVal maturityDate As Date, _
+    ByVal tenorMonths As Long _
+) As Collection
+
+    Dim dates As New Collection
+    Dim d As Date
+
+    dates.Add StartDate
+
+    d = StartDate
+
+    Do While d < maturityDate
+        d = DateAdd("m", tenorMonths, d)
+
+        If d > maturityDate Then
+            d = maturityDate
+        End If
+
+        dates.Add d
+    Loop
+
+    Set GenerateRegularSchedule = dates
+
+End Function
+
