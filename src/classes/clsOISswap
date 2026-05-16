@@ -33,7 +33,7 @@ Option Explicit
 '   ・カーブはブートストラップ中の仮カーブでも使えるよう Object として受ける
 '   ・curve は少なくとも以下の関数を持つ想定
 '     DF(in_TargetDate As Date) As Double
-'     ForwardRateBetween(in_StartDate As Date, in_EndDate As Date) As Double
+'     ForwardRate(in_StartDate As Date, in_EndDate As Date) As Double
 '============================================================
 
 Private mStartDate As Date
@@ -212,9 +212,9 @@ End Function
 '   ・支払日：EndDate_i + PaymentLag営業日
 '
 ' FloatingCoupon_i:
-'   ForwardRateBetween(StartDate_i, EndDate_i) * YearFrac_i
+'   ForwardRate(StartDate_i, EndDate_i) * YearFrac_i
 '
-' ここでは curve.ForwardRateBetween が
+' ここでは curve.ForwardRate が
 ' 期間複利と整合する単純年率を返す前提。
 '
 ' 本関数は脚単体のPVを正値で返す。
@@ -247,7 +247,7 @@ Public Function FloatingLegPV(ByVal in_cCurve As Object) As Double
     payDate = CDate(cf(i, 3))
     accrualYearFrac = CDbl(cf(i, 4))
 
-    fwdRate = in_cCurve.ForwardRateBetween(periodStart, periodEnd)
+    fwdRate = in_cCurve.ForwardRate(periodStart, periodEnd)
     dfPay = in_cCurve.df(payDate)
 
     pv = pv + mNotional * fwdRate * accrualYearFrac * dfPay
@@ -434,7 +434,7 @@ Public Function GetCashflowTable(Optional ByVal in_cCurve As Object = Nothing) A
       floatingPV = Empty
       netPV = Empty
     Else
-      fwdRate = in_cCurve.ForwardRateBetween(periodStart, periodEnd)
+      fwdRate = in_cCurve.ForwardRate(periodStart, periodEnd)
       dfPay = in_cCurve.df(payDate)
 
       floatingAmount = mNotional * CDbl(fwdRate) * yearFrac
