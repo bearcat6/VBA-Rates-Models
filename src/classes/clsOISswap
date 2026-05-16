@@ -173,7 +173,7 @@ End Property
 ' 本関数は脚単体のPVを正値で返す。
 ' PAYER / RECEIVER の符号は NPV 側で反映する。
 '============================================================
-Public Function FixedLegPV(ByVal in_cCurve As Object) As Double
+Public Function FixedLegPV(ByVal in_cCurve As clsDiscountCurve) As Double
 
   Dim cf As Variant
   Dim i As Long
@@ -220,7 +220,7 @@ End Function
 ' 本関数は脚単体のPVを正値で返す。
 ' PAYER / RECEIVER の符号は NPV 側で反映する。
 '============================================================
-Public Function FloatingLegPV(ByVal in_cCurve As Object) As Double
+Public Function FloatingLegPV(ByVal in_cCurve As clsDiscountCurve) As Double
 
   Dim cf As Variant
   Dim i As Long
@@ -266,7 +266,7 @@ End Function
 '   PAYER  : FloatingLegPV - FixedLegPV
 '   RECEIVER : FixedLegPV - FloatingLegPV
 '============================================================
-Public Function NPV(ByVal in_cCurve As Object) As Double
+Public Function NPV(ByVal in_cCurve As clsDiscountCurve) As Double
 
   Dim fixedPV As Double
   Dim floatingPV As Double
@@ -306,7 +306,7 @@ End Function
 '
 ' ParRate は PayReceive に依存しない。
 '============================================================
-Public Function ParRate(ByVal in_cCurve As Object) As Double
+Public Function ParRate(ByVal in_cCurve As clsDiscountCurve) As Double
 
   Dim cf As Variant
   Dim i As Long
@@ -375,7 +375,7 @@ End Function
 '   13 Floating PV
 '   14 Net PV
 '============================================================
-Public Function GetCashflowTable(Optional ByVal in_cCurve As Object = Nothing) As Variant
+Public Function GetCashflowTable(Optional ByVal in_cCurve As clsDiscountCurve = Nothing) As Variant
 
   Dim schedule As Variant
   Dim result() As Variant
@@ -635,7 +635,7 @@ End Sub
 '============================================================
 ' 内部チェック：カーブが渡されているか
 '============================================================
-Private Sub CheckCurve(ByVal in_cCurve As Object)
+Private Sub CheckCurve(ByVal in_cCurve As clsDiscountCurve)
 
   If in_cCurve Is Nothing Then
     Err.Raise vbObjectError + 2009, _
