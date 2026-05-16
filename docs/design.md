@@ -23,8 +23,10 @@ VBA-Rates-Models
 │  ├─ classes
 │  │  ├─ clsHolidayCalendar.cls
 │  │  ├─ clsDiscountCurve.cls
-│  │  └─ clsOISStepForwardCurve.cls
+│  │  ├─ clsOISStepForwardCurve.cls
+│  │  └─ clsOISswap.cls
 │  └─ modules
+│     ├─ mdl_Common.bas
 │     ├─ mdl_DayCount.bas
 │     ├─ mdl_BusinessDay.bas
 │     ├─ mdl_DiscountCurveFactory.bas
@@ -144,6 +146,33 @@ Count As Long
 土日判定、営業日加算、Business Day Convention の判定は、本クラスでは行わない。  
 それらは `mdl_BusinessDay` で行う。
 
+### 5.2 clsOISSwap
+
+#### 役割
+
+JPY OIS スワップの商品条件を保持し、固定脚・変動脚のキャッシュフロー、PV、NPV、ParRateを計算する。
+
+#### 主な責務
+
+- StartDate / EndDate / FixedRate / Notional / PaymentLag の保持
+- PAYER / RECEIVER の保持
+- 支払スケジュール生成
+- 固定脚PVの計算
+- 変動脚PVの計算
+- PayReceive を反映した NPV の計算
+- ParRate の計算
+- キャッシュフロー表を Variant 配列として返す
+
+#### 符号規約
+
+FixedLegPV および FloatingLegPV は、脚単体のPVとして正値で返す。  
+NPV は PayReceive に応じて符号を反映する。
+
+```text
+PAYER    : FloatingLegPV - FixedLegPV
+RECEIVER : FixedLegPV - FloatingLegPV
+
+
 ---
 
 ## 6. 標準モジュール設計
@@ -242,29 +271,3 @@ P  / Preceding
 ```
 
 Cap Volatility 以降は、OISカーブの実装後に設計を具体化する。
-
-### clsOISSwap
-
-#### 役割
-
-JPY OIS スワップの商品条件を保持し、固定脚・変動脚のキャッシュフロー、PV、NPV、ParRateを計算する。
-
-#### 主な責務
-
-- StartDate / EndDate / FixedRate / Notional / PaymentLag の保持
-- PAYER / RECEIVER の保持
-- 支払スケジュール生成
-- 固定脚PVの計算
-- 変動脚PVの計算
-- PayReceive を反映した NPV の計算
-- ParRate の計算
-- キャッシュフロー表を Variant 配列として返す
-
-#### 符号規約
-
-FixedLegPV および FloatingLegPV は、脚単体のPVとして正値で返す。  
-NPV は PayReceive に応じて符号を反映する。
-
-```text
-PAYER    : FloatingLegPV - FixedLegPV
-RECEIVER : FixedLegPV - FloatingLegPV
