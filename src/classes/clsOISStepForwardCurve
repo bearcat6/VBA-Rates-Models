@@ -651,9 +651,9 @@ Private Function BootstrapObjective(ByVal in_x As Double, _
     in_BusinessDayConvention:=mBusinessDayConvention, _
     in_Calendar:=mCalendar
 
-    Set cCurve = Me
+  Set cCurve = Me
     
-    BootstrapObjective = swp.NPV(cCurve)
+  BootstrapObjective = swp.NPV(cCurve)
 
   RestoreSegmentCount originalSegCount
 
