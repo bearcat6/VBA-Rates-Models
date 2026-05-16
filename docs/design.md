@@ -26,13 +26,15 @@ VBA-Rates-Models
 │  │  ├─ clsOISStepForwardCurve.cls
 │  │  ├─ clsOISswap.cls
 │  │  ├─ clsCapVolBootstrapper
-│  │  └─ clsCapVolTermStructure
+│  │  ├─ clsCapVolTermStructure
+│  │  └─ clsSwaptionVol
 │  └─ modules
 │     ├─ mdl_Common.bas
 │     ├─ mdl_DayCount.bas
 │     ├─ mdl_BusinessDay.bas
 │     ├─ mdl_DiscountCurveFactory.bas
-│     └─ mdl_CapFormula.bas
+│     ├─ mdl_CapFormula.bas
+│     └─ mdl_SwaptionVol.bas
 └─ README.md
 ```
 
@@ -333,3 +335,36 @@ Caplet評価に必要な数式関数を提供する。
 Cap volatility bootstrap のテスト・サンプル実行用モジュール。
 
 本モジュールは本番ロジックではなく、動作確認用の入口として位置づける。
+
+## 9. Swaption Volatility Surface の設計方針
+
+本プロジェクトでは、スワップション取引そのものを商品クラスとして評価することは当面の目的としない。
+
+目的は、CMS convexity adjustment や CMS spread swap 等で参照する ATM swaption volatility を、expiry × tenor のマトリックスから取得することである。
+
+そのため、Swaption商品クラスは作成しない。
+
+### clsSwaptionVol
+
+#### 役割
+
+ATM swaption volatility matrix を保持し、任意の expiry × tenor に対応する ATM volatility を返す。
+
+#### 主な責務
+
+- expiry grid の保持
+- underlying swap tenor grid の保持
+- ATM volatility matrix の保持
+- tenor方向の variance 補間
+- expiry方向の total variance 補間
+- 範囲外指定時のエラー制御または flat extrapolation
+
+#### 主なメソッド
+
+```text
+InitializeFromRange(in_MatrixRange, Optional in_AllowFlatExtrapolation)
+Vol(in_ExpiryYears, in_TenorText) As Double
+VolByYears(in_ExpiryYears, in_TenorYears) As Double
+ExpiryAt(in_Index) As Double
+TenorAt(in_Index) As Double
+GridVol(in_ExpiryIndex, in_TenorIndex) As Double
