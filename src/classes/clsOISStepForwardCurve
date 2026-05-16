@@ -601,19 +601,18 @@ End Function
 '============================================================
 ' 内部処理：ブートストラップ目的関数
 '============================================================
-Private Function BootstrapObjective( _
-  ByVal in_x As Double, _
-  ByVal in_FixedRate As Double, _
-  ByVal in_mode As String, _
-  ByVal in_flatStart As Date, _
-  ByVal in_flatEnd As Date, _
-  ByVal in_maturityMonths As Long, _
-  ByVal in_prevForward As Double _
-) As Double
+Private Function BootstrapObjective(ByVal in_x As Double, _
+                                    ByVal in_FixedRate As Double, _
+                                    ByVal in_mode As String, _
+                                    ByVal in_flatStart As Date, _
+                                    ByVal in_flatEnd As Date, _
+                                    ByVal in_maturityMonths As Long, _
+                                    ByVal in_prevForward As Double) As Double
 
   Dim originalSegCount As Long
   Dim maturityDate As Date
   Dim swp As clsOISswap
+  Dim cCurve As clsDiscountCurve
 
   originalSegCount = mSegCount
 
@@ -652,7 +651,6 @@ Private Function BootstrapObjective( _
     in_BusinessDayConvention:=mBusinessDayConvention, _
     in_Calendar:=mCalendar
 
-    Dim cCurve As clsDiscountCurve
     Set cCurve = Me
     
     BootstrapObjective = swp.NPV(cCurve)
@@ -664,11 +662,9 @@ End Function
 '============================================================
 ' 内部処理：6M以降のΔfセグメントを追加
 '============================================================
-Private Sub AppendDeltaForwardSegments( _
-  ByVal in_maturityMonths As Long, _
-  ByVal in_prevForward As Double, _
-  ByVal in_deltaForward As Double _
-)
+Private Sub AppendDeltaForwardSegments(ByVal in_maturityMonths As Long, _
+                                       ByVal in_prevForward As Double, _
+                                       ByVal in_deltaForward As Double)
 
   Dim currentEnd As Date
   Dim nextEnd As Date
@@ -704,9 +700,7 @@ End Sub
 '============================================================
 ' 内部処理：現在の最終日より後に来る次の3Mグリッド月数を探す
 '============================================================
-Private Function FindNextGridMonthAfterCurrentEnd( _
-  ByVal in_maturityMonths As Long _
-) As Long
+Private Function FindNextGridMonthAfterCurrentEnd(ByVal in_maturityMonths As Long) As Long
 
   Dim k As Long
   Dim d As Date
@@ -740,10 +734,8 @@ End Function
 '============================================================
 ' 内部処理：指定区間の∫fdt
 '============================================================
-Private Function IntegralForward( _
-  ByVal in_StartDate As Date, _
-  ByVal in_EndDate As Date _
-) As Double
+Private Function IntegralForward(ByVal in_StartDate As Date, _
+                                 ByVal in_EndDate As Date) As Double
 
   Dim i As Long
   Dim s As Date
@@ -796,10 +788,8 @@ End Function
 '============================================================
 ' 内部処理：PaymentLag範囲内の短期外挿を許容した∫fdt
 '============================================================
-Private Function IntegralForwardAllowPaymentLag( _
-  ByVal in_StartDate As Date, _
-  ByVal in_EndDate As Date _
-) As Double
+Private Function IntegralForwardAllowPaymentLag(ByVal in_StartDate As Date, _
+                                                ByVal in_EndDate As Date) As Double
 
   Dim baseEndDate As Date
   Dim total As Double
@@ -834,14 +824,12 @@ End Function
 '============================================================
 ' 内部処理：Quote抽出・ソート
 '============================================================
-Private Sub ExtractAndSortQuotes( _
-  ByVal in_Tenors As Variant, _
-  ByVal in_Rates As Variant, _
-  ByRef out_onRate As Double, _
-  ByRef out_quoteMonths() As Long, _
-  ByRef out_quoteRates() As Double, _
-  ByRef out_quoteCount As Long _
-)
+Private Sub ExtractAndSortQuotes(ByVal in_Tenors As Variant, _
+                                 ByVal in_Rates As Variant, _
+                                 ByRef out_onRate As Double, _
+                                 ByRef out_quoteMonths() As Long, _
+                                 ByRef out_quoteRates() As Double, _
+                                 ByRef out_quoteCount As Long)
 
   Dim n As Long
   Dim i As Long
@@ -960,11 +948,9 @@ End Function
 '============================================================
 ' 内部処理：Quoteを月数順にソート
 '============================================================
-Private Sub SortQuotesByMonths( _
-  ByRef io_months() As Long, _
-  ByRef io_rates() As Double, _
-  ByVal in_count As Long _
-)
+Private Sub SortQuotesByMonths(ByRef io_months() As Long, _
+                               ByRef io_rates() As Double, _
+                               ByVal in_count As Long)
 
   Dim i As Long
   Dim j As Long
@@ -990,11 +976,9 @@ End Sub
 '============================================================
 ' 内部処理：同じ月数のQuoteがある場合、後勝ちで1つにする
 '============================================================
-Private Sub RemoveDuplicateQuoteMonths( _
-  ByRef io_months() As Long, _
-  ByRef io_rates() As Double, _
-  ByRef io_count As Long _
-)
+Private Sub RemoveDuplicateQuoteMonths(ByRef io_months() As Long, _
+                                       ByRef io_rates() As Double, _
+                                       ByRef io_count As Long)
 
   Dim newMonths() As Long
   Dim newRates() As Double
@@ -1052,10 +1036,8 @@ End Function
 '============================================================
 ' 内部処理：配列からi番目の値を取得
 '============================================================
-Private Function GetVariantItem( _
-  ByVal in_v As Variant, _
-  ByVal in_index As Long _
-) As Variant
+Private Function GetVariantItem(ByVal in_v As Variant, _
+                                ByVal in_index As Long) As Variant
 
   On Error GoTo TryOneDim
 
@@ -1106,10 +1088,8 @@ End Sub
 '============================================================
 ' 内部処理：単純年率を連続フォワードに変換
 '============================================================
-Private Function SimpleRateToContinuousForward( _
-  ByVal in_simpleRate As Double, _
-  ByVal in_yearFrac As Double _
-) As Double
+Private Function SimpleRateToContinuousForward(ByVal in_simpleRate As Double, _
+                                               ByVal in_yearFrac As Double) As Double
 
   If in_yearFrac <= 0# Then
     Err.Raise vbObjectError + 3021, _
@@ -1131,10 +1111,8 @@ End Function
 '============================================================
 ' 内部処理：Max Date
 '============================================================
-Private Function MaxDate( _
-  ByVal in_date1 As Date, _
-  ByVal in_date2 As Date _
-) As Date
+Private Function MaxDate(ByVal in_date1 As Date, _
+                         ByVal in_date2 As Date) As Date
 
   If in_date1 >= in_date2 Then
     MaxDate = in_date1
@@ -1147,10 +1125,8 @@ End Function
 '============================================================
 ' 内部処理：Min Date
 '============================================================
-Private Function MinDate( _
-  ByVal in_date1 As Date, _
-  ByVal in_date2 As Date _
-) As Date
+Private Function MinDate(ByVal in_date1 As Date, _
+                         ByVal in_date2 As Date) As Date
 
   If in_date1 <= in_date2 Then
     MinDate = in_date1
@@ -1187,10 +1163,8 @@ Private Function clsDiscountCurve_ZeroRateCont(ByVal in_TargetDate As Date) As D
   clsDiscountCurve_ZeroRateCont = Me.ZeroRateCont(in_TargetDate)
 End Function
 
-Private Function clsDiscountCurve_ForwardRate( _
-  ByVal in_StartDate As Date, _
-  ByVal in_EndDate As Date _
-) As Double
+Private Function clsDiscountCurve_ForwardRate(ByVal in_StartDate As Date, _
+                                              ByVal in_EndDate As Date) As Double
 
   clsDiscountCurve_ForwardRate = Me.ForwardRate(in_StartDate, in_EndDate)
 
