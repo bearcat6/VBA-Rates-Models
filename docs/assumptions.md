@@ -9,6 +9,7 @@
 - クラス型の引数名・変数名には、オブジェクトであることが分かる接頭辞 c を使用する
   - 例：in_cCurve, in_cCalendar
 - モジュール名は mdl_ で始める
+- タブ間隔は半角2文字分
 
 ## Business Day Convention
 - 営業日調整の既定値は Modified Following
