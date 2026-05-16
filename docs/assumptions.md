@@ -100,3 +100,20 @@
 - 時間方向は total variance ベースで管理する
   - Total Variance = Σ normalVol_i^2 × yearFraction_i
 
+## Swaption Volatility
+
+- 目的は、スワップション取引そのものの評価ではなく、CMS convexity adjustment や CMS spread swap 等で参照する ATM swaption volatility surface を構築・参照することである
+- スワップションの商品クラスは当面作成しない
+- ATM swaption volatility は、expiry × underlying swap tenor のマトリックスとして入力する
+- Expiry は年数 Double または tenor文字列で指定可能とする
+  - 例：0.5, 1, 1.5, "6M", "1Y", "18M"
+- Tenor は文字列指定を基本とする
+  - 例："1Y", "5Y", "10Y", "20Y"
+- 入力ボラティリティは、当面 ATM Normal Vol を前提とする
+- Normal Vol は絶対値表記とする
+  - 例：40bp normal vol = 0.0040
+- Tenor方向は variance = vol^2 を線形補間する
+- Expiry方向は total variance = vol^2 × expiry を線形補間する
+- 範囲外の外挿は原則エラーとする
+- ただし、明示的に allowFlatExtrapolation = True とした場合のみ、最短・最長グリッドの端点ボラを使用する
+- 本サーフェスは、CMS関連評価のための実務的な補間サーフェスであり、完全な無裁定スワップション・ボラティリティモデルではない
