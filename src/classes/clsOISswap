@@ -195,7 +195,7 @@ Public Function FixedLegPV(ByVal in_cCurve As Object) As Double
     accrualYearFrac = CDbl(cf(i, 4))
     payDate = CDate(cf(i, 3))
 
-    dfPay = in_cCurve.df(payDate)
+    dfPay = in_cCurve.DF(payDate)
 
     pv = pv + mNotional * mFixedRate * accrualYearFrac * dfPay
   Next i
