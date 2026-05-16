@@ -1,0 +1,249 @@
+
+Option Explicit
+
+'====================================================
+' mdlSwaptionVol
+'
+' clsSwaptionVol 用の標準モジュール。
+'
+' 役割：
+'   ・Tenor / Expiry 文字列の年数変換
+'   ・Excel関数ラッパー
+'   ・テスト用プロシージャ
+'
+'====================================================
+
+'====================================================
+' Tenor文字列を年数に変換
+'
+' 対応例：
+'   "1D"   -> 1 / 365
+'   "1W"   -> 1 / 52
+'   "1M"   -> 1 / 12
+'   "3M"   -> 0.25
+'   "6M"   -> 0.5
+'   "1Y"   -> 1
+'   "10Y"  -> 10
+'   "18M"  -> 1.5
+'   "1.5Y" -> 1.5
+'
+'====================================================
+Public Function SwaptionTenorToYears(ByVal tenorText As String) As Double
+
+    Dim s As String
+    Dim unitText As String
+    Dim numText As String
+    Dim n As Double
+    
+    s = UCase$(Trim$(tenorText))
+    
+    If Len(s) = 0 Then
+        Err.Raise vbObjectError + 2000, "mdlSwaptionVol.SwaptionTenorToYears", _
+                  "Tenor text is empty."
+    End If
+    
+    ' 数値だけ渡された場合は年数とみなす
+    If IsNumeric(s) Then
+        SwaptionTenorToYears = CDbl(s)
+        Exit Function
+    End If
+    
+    If Len(s) < 2 Then
+        Err.Raise vbObjectError + 2001, "mdlSwaptionVol.SwaptionTenorToYears", _
+                  "Invalid tenor text: " & tenorText
+    End If
+    
+    unitText = Right$(s, 1)
+    numText = Left$(s, Len(s) - 1)
+    
+    If Not IsNumeric(numText) Then
+        Err.Raise vbObjectError + 2002, "mdlSwaptionVol.SwaptionTenorToYears", _
+                  "Invalid tenor number: " & tenorText
+    End If
+    
+    n = CDbl(numText)
+    
+    If n <= 0 Then
+        Err.Raise vbObjectError + 2003, "mdlSwaptionVol.SwaptionTenorToYears", _
+                  "Tenor must be positive: " & tenorText
+    End If
+    
+    Select Case unitText
+    
+        Case "D"
+            SwaptionTenorToYears = n / 365#
+            
+        Case "W"
+            SwaptionTenorToYears = n / 52#
+            
+        Case "M"
+            SwaptionTenorToYears = n / 12#
+            
+        Case "Y"
+            SwaptionTenorToYears = n
+            
+        Case Else
+            Err.Raise vbObjectError + 2004, "mdlSwaptionVol.SwaptionTenorToYears", _
+                      "Invalid tenor unit: " & tenorText
+    
+    End Select
+
+End Function
+
+'====================================================
+' Excel関数：
+' ATMスワップションボラを返す
+'
+' 使用例：
+' =ATM_SWAPTION_VOL(1.5,"10Y",SwaptionVol!A1:F7)
+'
+' allowFlatExtrapolation:
+'   FALSE または省略：範囲外はエラー
+'   TRUE          ：範囲外は端点固定
+'
+'====================================================
+Public Function ATM_SWAPTION_VOL( _
+    ByVal expiryYears As Double, _
+    ByVal tenorText As String, _
+    ByVal matrixRange As Range, _
+    Optional ByVal allowFlatExtrapolation As Boolean = False) As Variant
+
+    On Error GoTo ErrHandler
+    
+    Dim surf As clsSwaptionVol
+    
+    Set surf = New clsSwaptionVol
+    
+    surf.InitializeFromRange matrixRange, allowFlatExtrapolation
+    
+    ATM_SWAPTION_VOL = surf.Vol(expiryYears, tenorText)
+    
+    Exit Function
+
+ErrHandler:
+    ATM_SWAPTION_VOL = CVErr(xlErrValue)
+
+End Function
+
+'====================================================
+' Excel関数：
+' Expiryも文字列で指定できる版
+'
+' 使用例：
+' =ATM_SWAPTION_VOL2("18M","10Y",SwaptionVol!A1:F7)
+' =ATM_SWAPTION_VOL2("1.5Y","10Y",SwaptionVol!A1:F7)
+'
+'====================================================
+Public Function ATM_SWAPTION_VOL2( _
+    ByVal expiryText As String, _
+    ByVal tenorText As String, _
+    ByVal matrixRange As Range, _
+    Optional ByVal allowFlatExtrapolation As Boolean = False) As Variant
+
+    On Error GoTo ErrHandler
+    
+    Dim surf As clsSwaptionVol
+    Dim expiryYears As Double
+    
+    expiryYears = SwaptionTenorToYears(expiryText)
+    
+    Set surf = New clsSwaptionVol
+    
+    surf.InitializeFromRange matrixRange, allowFlatExtrapolation
+    
+    ATM_SWAPTION_VOL2 = surf.Vol(expiryYears, tenorText)
+    
+    Exit Function
+
+ErrHandler:
+    ATM_SWAPTION_VOL2 = CVErr(xlErrValue)
+
+End Function
+
+'====================================================
+' Excel関数：
+' Tenor文字列を年数に変換して返す確認用関数
+'
+' 使用例：
+' =SWAPTION_TENOR_TO_YEARS("18M")
+'
+'====================================================
+Public Function SWAPTION_TENOR_TO_YEARS(ByVal tenorText As String) As Variant
+
+    On Error GoTo ErrHandler
+    
+    SWAPTION_TENOR_TO_YEARS = SwaptionTenorToYears(tenorText)
+    
+    Exit Function
+
+ErrHandler:
+    SWAPTION_TENOR_TO_YEARS = CVErr(xlErrValue)
+
+End Function
+
+'====================================================
+' VBAテスト用
+'
+' 前提：
+'   SwaptionVol シートの A1:F7 にボラマトリックスがある
+'
+'====================================================
+Public Sub Test_clsSwaptionVol()
+
+    Dim surf As clsSwaptionVol
+    Dim ws As Worksheet
+    Dim rng As Range
+    
+    Dim v1 As Double
+    Dim v2 As Double
+    Dim v3 As Double
+    
+    Set ws = ThisWorkbook.Worksheets("SwaptionVol")
+    Set rng = ws.Range("A1:F7")
+    
+    Set surf = New clsSwaptionVol
+    
+    ' 第2引数 False：
+    ' 範囲外の場合はエラーにする
+    surf.InitializeFromRange rng, False
+    
+    v1 = surf.Vol(1#, "10Y")
+    v2 = surf.Vol(1.5, "10Y")
+    v3 = surf.Vol(2#, "20Y")
+    
+    Debug.Print "1Y x 10Y Vol  = "; Format(v1, "0.0000%")
+    Debug.Print "1.5Y x 10Y Vol= "; Format(v2, "0.0000%")
+    Debug.Print "2Y x 20Y Vol  = "; Format(v3, "0.0000%")
+
+End Sub
+
+'====================================================
+' 外挿ありのテスト
+'
+' 例えば、マトリックスが最大 20Y tenor までしかないとき、
+' "30Y" を指定したら 20Y のボラを使う。
+'
+'====================================================
+Public Sub Test_clsSwaptionVol_WithFlatExtrapolation()
+
+    Dim surf As clsSwaptionVol
+    Dim ws As Worksheet
+    Dim rng As Range
+    
+    Dim v As Double
+    
+    Set ws = ThisWorkbook.Worksheets("SwaptionVol")
+    Set rng = ws.Range("A1:F7")
+    
+    Set surf = New clsSwaptionVol
+    
+    ' 第2引数 True：
+    ' 範囲外は端点固定
+    surf.InitializeFromRange rng, True
+    
+    v = surf.Vol(10#, "30Y")
+    
+    Debug.Print "10Y x 30Y Vol with flat extrapolation = "; Format(v, "0.0000%")
+
+End Sub
+
