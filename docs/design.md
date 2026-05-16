@@ -171,7 +171,7 @@ NPV は PayReceive に応じて符号を反映する。
 ```text
 PAYER    : FloatingLegPV - FixedLegPV
 RECEIVER : FixedLegPV - FloatingLegPV
-
+```
 
 ---
 
