@@ -57,6 +57,19 @@
 - ACT/365
 - 1年以内は満期一括、1年超は年1回払い
 
+## OIS Swap
+- clsOISSwap は OIS スワップの商品条件を保持する商品クラスとする
+- payer / receiver を商品条件として保持する
+- PAYER は固定払い・変動受けを意味する
+- RECEIVER は固定受け・変動払いを意味する
+- FixedLegPV および FloatingLegPV は、脚単体のPVを正値として返す
+- NPV は PayReceive に応じて以下のとおり計算する
+  - PAYER: FloatingLegPV - FixedLegPV
+  - RECEIVER: FixedLegPV - FloatingLegPV
+- ParRate は、固定脚PVと変動脚PVが一致する固定金利として商品クラスで計算する
+- ParRate は PayReceive に依存しない
+- ACT/365 Fixed の YearFrac は共通モジュール `mdl_Common` で定義する
+
 ## OIS Step Forward Curve
 - クラス名：clsOISStepForwardCurve
 - DF(in_TargetDate), ZeroRateCont(in_TargetDate), ForwardRate(in_StartDate, in_EndDate) を返す
