@@ -32,7 +32,7 @@ VBA-Rates-Models
 │     ├─ mdl_DayCount.bas
 │     ├─ mdl_BusinessDay.bas
 │     ├─ mdl_DiscountCurveFactory.bas
-│     └─ mdl_CapVolUtil.bas
+│     └─ mdl_CapFormula.bas
 └─ README.md
 ```
 
