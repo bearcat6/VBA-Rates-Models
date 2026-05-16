@@ -428,31 +428,6 @@ Public Function GetCashflowTable(Optional ByVal in_curve As Object = Nothing) As
 End Function
 
 '============================================================
-' キャッシュフロー表をシートに出力
-'============================================================
-Public Sub ExportCashflowsToSheet(ByVal in_sheetName As String, _
-                                  ByVal in_startCell As String, _
-                                  Optional ByVal in_curve As Object = Nothing)
-
-  Dim ws As Worksheet
-  Dim arr As Variant
-  Dim rCount As Long
-  Dim cCount As Long
-  
-  CheckInitialized
-  
-  Set ws = ThisWorkbook.Worksheets(in_sheetName)
-  
-  arr = GetCashflowTable(in_curve)
-  
-  rCount = UBound(arr, 1)
-  cCount = UBound(arr, 2)
-  
-  ws.Range(in_startCell).Resize(rCount, cCount).Value = arr
-
-End Sub
-
-'============================================================
 ' 内部関数：支払スケジュール生成
 '
 ' 返却列：
