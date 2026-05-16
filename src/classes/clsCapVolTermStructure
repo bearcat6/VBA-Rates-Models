@@ -1,0 +1,231 @@
+Option Explicit
+
+'====================================================
+' Class: CCapVolBootstrapper
+' Purpose:
+'   Bootstrap caplet normal vols from quoted cap normal vols
+'====================================================
+
+Private mValDate As Date
+Private mCurve As Object
+
+Private mStartDate As Date
+Private mPaymentTenorMonths As Long
+Private mStrike As Double
+Private mNotional As Double
+
+Public Sub Init( _
+    ByVal ValuationDate As Date, _
+    ByVal StartDate As Date, _
+    ByVal paymentTenorMonths As Long, _
+    ByVal strikeRate As Double, _
+    ByVal Notional As Double, _
+    ByVal discountCurve As Object _
+)
+
+    mValDate = ValuationDate
+    mStartDate = StartDate
+    mPaymentTenorMonths = paymentTenorMonths
+    mStrike = strikeRate
+    mNotional = Notional
+
+    Set mCurve = discountCurve
+
+End Sub
+
+Public Function Bootstrap( _
+    ByRef capMaturityDates() As Date, _
+    ByRef capNormalVols() As Double _
+) As clsCapVolTermStructure
+
+    Dim volTS As New clsCapVolTermStructure
+    volTS.Init mValDate
+
+    Dim i As Long
+    Dim j As Long
+
+    Dim cap As clsCap
+    Dim schedule As Collection
+
+    Dim marketPrice As Double
+    Dim modelPriceKnown As Double
+
+    Dim periodStart As Date
+    Dim periodEnd As Date
+
+    Dim solvedVol As Double
+
+    For i = LBound(capMaturityDates) To UBound(capMaturityDates)
+
+        Set cap = New clsCap
+        cap.Init _
+            mValDate, _
+            mStartDate, _
+            capMaturityDates(i), _
+            mPaymentTenorMonths, _
+            mStrike, _
+            mNotional, _
+            mCurve
+
+        marketPrice = cap.PriceWithFlatVol(capNormalVols(i))
+
+        Set schedule = cap.schedule
+
+        For j = 1 To schedule.Count - 1
+
+            periodStart = schedule(j)
+            periodEnd = schedule(j + 1)
+
+            If periodStart <= mValDate Then
+                GoTo ContinuePeriod
+            End If
+
+            If Not HasVol(volTS, periodEnd) Then
+
+                solvedVol = SolveNewPeriodVol( _
+                                cap, _
+                                volTS, _
+                                marketPrice, _
+                                periodStart, _
+                                periodEnd)
+
+                volTS.AddCapletVol periodStart, periodEnd, solvedVol
+
+            End If
+
+ContinuePeriod:
+        Next j
+
+    Next i
+
+    Set Bootstrap = volTS
+
+End Function
+
+Private Function HasVol( _
+    ByVal volTS As clsCapVolTermStructure, _
+    ByVal periodEndDate As Date _
+) As Boolean
+
+    On Error GoTo NotFound
+
+    Dim v As Double
+    v = volTS.GetNormalVolByPeriodEnd(periodEndDate)
+
+    HasVol = True
+    Exit Function
+
+NotFound:
+    HasVol = False
+
+End Function
+
+Private Function SolveNewPeriodVol( _
+    ByVal cap As clsCap, _
+    ByVal existingVolTS As clsCapVolTermStructure, _
+    ByVal targetPrice As Double, _
+    ByVal newPeriodStart As Date, _
+    ByVal newPeriodEnd As Date _
+) As Double
+
+    Dim lowVol As Double
+    Dim highVol As Double
+    Dim midVol As Double
+
+    Dim price As Double
+    Dim k As Long
+
+    lowVol = 0#
+    highVol = 0.05   ' 500bp normal vol。必要なら拡張
+
+    For k = 1 To 100
+
+        midVol = 0.5 * (lowVol + highVol)
+
+        price = PriceCapWithTemporaryVol( _
+                    cap, _
+                    existingVolTS, _
+                    newPeriodEnd, _
+                    midVol)
+
+        If price > targetPrice Then
+            highVol = midVol
+        Else
+            lowVol = midVol
+        End If
+
+        If Abs(price - targetPrice) < 0.000001 Then
+            Exit For
+        End If
+
+    Next k
+
+    SolveNewPeriodVol = midVol
+
+End Function
+
+Private Function PriceCapWithTemporaryVol( _
+    ByVal cap As clsCap, _
+    ByVal existingVolTS As clsCapVolTermStructure, _
+    ByVal newPeriodEnd As Date, _
+    ByVal newVol As Double _
+) As Double
+
+    Dim schedule As Collection
+    Set schedule = cap.schedule
+
+    Dim i As Long
+    Dim d0 As Date
+    Dim d1 As Date
+    Dim fixingDate As Date
+    Dim paymentDate As Date
+
+    Dim ForwardRate As Double
+    Dim expiryYear As Double
+    Dim accrualYear As Double
+    Dim DF As Double
+    Dim normalVol As Double
+
+    Dim pv As Double
+
+    pv = 0#
+
+    For i = 1 To schedule.Count - 1
+
+        d0 = schedule(i)
+        d1 = schedule(i + 1)
+
+        fixingDate = d0
+        paymentDate = d1
+
+        If fixingDate <= mValDate Then
+            GoTo ContinueLoop
+        End If
+
+        If d1 = newPeriodEnd Then
+            normalVol = newVol
+        Else
+            normalVol = existingVolTS.GetNormalVolByPeriodEnd(d1)
+        End If
+
+        ForwardRate = mCurve.ForwardRateBetween(d0, d1)
+        expiryYear = YearFrac_ACT365(mValDate, fixingDate)
+        accrualYear = YearFrac_ACT365(d0, d1)
+        DF = mCurve.DF(paymentDate)
+
+        pv = pv + CapletPV_Normal( _
+                    ForwardRate, _
+                    cap.Strike, _
+                    normalVol, _
+                    expiryYear, _
+                    accrualYear, _
+                    DF, _
+                    cap.Notional)
+
+ContinueLoop:
+    Next i
+
+    PriceCapWithTemporaryVol = pv
+
+End Function
+
