@@ -1,81 +1,100 @@
 
 Option Explicit
 
+'============================================================
+' clsOISSwap
+'
+' JPY OIS 商品クラス
+'
 ' 役割：
 '   ・OISスワップの取引条件を保持する
-'   ・payer / receiver を保持する
+'   ・PAYER / RECEIVER を保持する
 '   ・固定脚・変動脚のキャッシュフローを生成する
 '   ・渡されたOISカーブを使ってPV/NPV/ParRateを計算する
 '
-' payer / receiver：
-'   ・PAYER    ：固定払い・変動受け
+' 前提：
+'   ・JPY OIS
+'   ・TONA複利 vs 固定
+'   ・Delay方式
+'   ・利息計算期間と金利参照期間は一致
+'   ・支払日のみ EndDate + PaymentLag 営業日
+'   ・固定脚・変動脚は同じ支払日
+'   ・1年以内は満期一括
+'   ・1年超は年1回払い
+'
+' PAYER / RECEIVER：
+'   ・PAYER  ：固定払い・変動受け
 '   ・RECEIVER ：固定受け・変動払い
 '
 ' 注意：
 '   ・FixedLegPV / FloatingLegPV は脚単体のPVを正値で返す
 '   ・NPV は PayReceive に応じて符号を反映する
 '   ・ParRate は PayReceive に依存しない
-
+'   ・カーブはブートストラップ中の仮カーブでも使えるよう Object として受ける
+'   ・curve は少なくとも以下の関数を持つ想定
+'     DF(in_TargetDate As Date) As Double
+'     ForwardRateBetween(in_StartDate As Date, in_EndDate As Date) As Double
+'============================================================
 
 Private mStartDate As Date
-Private mEndDate   As Date
+Private mEndDate As Date
 Private mFixedRate As Double
-Private mNotional  As Double
+Private mNotional As Double
 Private mPaymentLag As Long
 Private mPayReceive As String
 Private mBusinessDayConvention As String
 Private mCalendar As clsHolidayCalendar
 Private mIsInitialized As Boolean
-'
 
 '============================================================
 ' 初期化
 '============================================================
 Public Sub Init(ByVal in_StartDate As Date, _
-                ByVal in_EndDate As Date, _
-                ByVal in_FixedRate As Double, _
-                ByVal in_Notional As Double, _
-                Optional ByVal in_PaymentLag As Long = 2, _
-                Optional ByVal in_BusinessDayConvention As String = "MF", _
-                Optional ByVal in_Calendar As clsHolidayCalendar = Nothing, _
-                Optional ByVal in_PayReceive As String = "PAYER")
+        ByVal in_EndDate As Date, _
+        ByVal in_FixedRate As Double, _
+        ByVal in_Notional As Double, _
+        Optional ByVal in_PaymentLag As Long = 2, _
+        Optional ByVal in_BusinessDayConvention As String = "MF", _
+        Optional ByVal in_Calendar As clsHolidayCalendar = Nothing, _
+        Optional ByVal in_PayReceive As String = "PAYER")
 
-    If in_EndDate <= in_StartDate Then
-        Err.Raise vbObjectError + 2001, _
-                  "clsOISSwap.Init", _
-                  "EndDate は StartDate より後の日付にしてください。"
-    End If
+  If in_EndDate <= in_StartDate Then
+    Err.Raise vbObjectError + 2001, _
+        "clsOISSwap.Init", _
+        "EndDate は StartDate より後の日付にしてください。"
+  End If
 
-    If in_Notional <= 0# Then
-        Err.Raise vbObjectError + 2002, _
-                  "clsOISSwap.Init", _
-                  "Notional は正の値にしてください。"
-    End If
+  If in_Notional <= 0# Then
+    Err.Raise vbObjectError + 2002, _
+        "clsOISSwap.Init", _
+        "Notional は正の値にしてください。"
+  End If
 
-    If in_PaymentLag < 0 Then
-        Err.Raise vbObjectError + 2003, _
-                  "clsOISSwap.Init", _
-                  "PaymentLag は0以上にしてください。"
-    End If
+  If in_PaymentLag < 0 Then
+    Err.Raise vbObjectError + 2003, _
+        "clsOISSwap.Init", _
+        "PaymentLag は0以上にしてください。"
+  End If
 
-    mStartDate = in_StartDate
-    mEndDate = in_EndDate
-    mFixedRate = in_FixedRate
-    mNotional = in_Notional
-    mPaymentLag = in_PaymentLag
-    mBusinessDayConvention = in_BusinessDayConvention
-    mPayReceive = NormalizePayReceive(in_PayReceive)
+  mStartDate = in_StartDate
+  mEndDate = in_EndDate
+  mFixedRate = in_FixedRate
+  mNotional = in_Notional
+  mPaymentLag = in_PaymentLag
+  mBusinessDayConvention = in_BusinessDayConvention
+  mPayReceive = NormalizePayReceive(in_PayReceive)
 
-    Set mCalendar = in_Calendar
+  Set mCalendar = in_Calendar
 
-    mIsInitialized = True
+  mIsInitialized = True
 
 End Sub
+
 '============================================================
 ' Property
 '============================================================
-Public Property Get startDate() As Date
-  startDate = mStartDate
+Public Property Get StartDate() As Date
+  StartDate = mStartDate
 End Property
 
 Public Property Get EndDate() As Date
@@ -90,41 +109,44 @@ Public Property Let FixedRate(ByVal in_FixedRate As Double)
   mFixedRate = in_FixedRate
 End Property
 
-Public Property Get notional() As Double
-    notional = mNotional
+Public Property Get Notional() As Double
+  Notional = mNotional
 End Property
 
-Public Property Let notional(ByVal in_Notional As Double)
+Public Property Let Notional(ByVal in_Notional As Double)
+
   If in_Notional <= 0# Then
-      Err.Raise vbObjectError + 2004, _
-                "clsOISSwap.Notional", _
-                "Notional は正の値にしてください。"
+    Err.Raise vbObjectError + 2004, _
+          "clsOISSwap.Notional", _
+          "Notional は正の値にしてください。"
   End If
-  
+
   mNotional = in_Notional
+
 End Property
 
 Public Property Get PaymentLag() As Long
   PaymentLag = mPaymentLag
 End Property
 
+Public Property Let PaymentLag(ByVal in_PaymentLag As Long)
+
+  If in_PaymentLag < 0 Then
+    Err.Raise vbObjectError + 2005, _
+          "clsOISSwap.PaymentLag", _
+          "PaymentLag は0以上にしてください。"
+  End If
+
+  mPaymentLag = in_PaymentLag
+
+End Property
+
 Public Property Get PayReceive() As String
-    PayReceive = mPayReceive
+  PayReceive = mPayReceive
 End Property
 
 Public Property Let PayReceive(ByVal in_PayReceive As String)
-    mPayReceive = NormalizePayReceive(in_PayReceive)
-End Property
-
-Public Property Let PaymentLag(ByVal in_PaymentLag As Long)
-  
-  If in_PaymentLag < 0 Then
-      Err.Raise vbObjectError + 2005, _
-                "clsOISSwap.PaymentLag", _
-                "PaymentLag は0以上にしてください。"
-  End If
-  mPaymentLag = in_PaymentLag
-  
+  mPayReceive = NormalizePayReceive(in_PayReceive)
 End Property
 
 Public Property Get BusinessDayConvention() As String
@@ -136,19 +158,22 @@ Public Property Let BusinessDayConvention(ByVal in_BusinessDayConvention As Stri
 End Property
 
 Public Property Set Calendar(ByVal in_Calendar As clsHolidayCalendar)
-    Set mCalendar = in_Calendar
+  Set mCalendar = in_Calendar
 End Property
 
 Public Property Get Calendar() As clsHolidayCalendar
-    Set Calendar = mCalendar
+  Set Calendar = mCalendar
 End Property
 
 '============================================================
 ' 固定脚PV
 '
 ' FixedLegPV = Σ Notional * FixedRate * YearFrac_i * DF(PayDate_i)
+'
+' 本関数は脚単体のPVを正値で返す。
+' PAYER / RECEIVER の符号は NPV 側で反映する。
 '============================================================
-Public Function FixedLegPV(ByVal in_Curve As Object) As Double
+Public Function FixedLegPV(ByVal in_cCurve As Object) As Double
 
   Dim cf As Variant
   Dim i As Long
@@ -157,24 +182,24 @@ Public Function FixedLegPV(ByVal in_Curve As Object) As Double
   Dim payDate As Date
   Dim dfPay As Double
   Dim pv As Double
-  
+
   CheckInitialized
-  CheckCurve in_Curve
-  
+  CheckCurve in_cCurve
+
   cf = GetScheduleArray()
   n = UBound(cf, 1)
-  
+
   pv = 0#
-  
+
   For i = 1 To n
     accrualYearFrac = CDbl(cf(i, 4))
     payDate = CDate(cf(i, 3))
-    
-    dfPay = in_Curve.df(payDate)
-    
+
+    dfPay = in_cCurve.df(payDate)
+
     pv = pv + mNotional * mFixedRate * accrualYearFrac * dfPay
   Next i
-  
+
   FixedLegPV = pv
 
 End Function
@@ -192,14 +217,10 @@ End Function
 ' ここでは curve.ForwardRateBetween が
 ' 期間複利と整合する単純年率を返す前提。
 '
-' つまり：
-'   couponAmount
-'     = Notional
-'       * ForwardRateBetween(Start, End)
-'       * YearFrac(Start, End)
-'
+' 本関数は脚単体のPVを正値で返す。
+' PAYER / RECEIVER の符号は NPV 側で反映する。
 '============================================================
-Public Function FloatingLegPV(ByVal in_Curve As Object) As Double
+Public Function FloatingLegPV(ByVal in_cCurve As Object) As Double
 
   Dim cf As Variant
   Dim i As Long
@@ -211,27 +232,27 @@ Public Function FloatingLegPV(ByVal in_Curve As Object) As Double
   Dim fwdRate As Double
   Dim dfPay As Double
   Dim pv As Double
-  
+
   CheckInitialized
-  CheckCurve in_Curve
-  
+  CheckCurve in_cCurve
+
   cf = GetScheduleArray()
   n = UBound(cf, 1)
-  
+
   pv = 0#
-  
+
   For i = 1 To n
     periodStart = CDate(cf(i, 1))
     periodEnd = CDate(cf(i, 2))
     payDate = CDate(cf(i, 3))
     accrualYearFrac = CDbl(cf(i, 4))
-    
-    fwdRate = in_Curve.ForwardRateBetween(periodStart, periodEnd)
-    dfPay = in_Curve.df(payDate)
-    
+
+    fwdRate = in_cCurve.ForwardRateBetween(periodStart, periodEnd)
+    dfPay = in_cCurve.df(payDate)
+
     pv = pv + mNotional * fwdRate * accrualYearFrac * dfPay
   Next i
-  
+
   FloatingLegPV = pv
 
 End Function
@@ -239,45 +260,42 @@ End Function
 '============================================================
 ' NPV
 '
-' payer/receiver の符号をまだ持たせない簡易版。
+' FixedLegPV / FloatingLegPV は脚単体のPVを正値で返す。
+' NPV は PayReceive に応じて以下の符号で返す。
 '
-' ここでは、
-'   NPV = FloatingLegPV - FixedLegPV
-'
-' とする。
-'
-' つまり、固定を支払い、変動を受ける payer swap の価値。
+'   PAYER  : FloatingLegPV - FixedLegPV
+'   RECEIVER : FixedLegPV - FloatingLegPV
 '============================================================
-Public Function NPV(ByVal in_Curve As Object) As Double
+Public Function NPV(ByVal in_cCurve As Object) As Double
 
-    Dim fixedPV As Double
-    Dim floatingPV As Double
+  Dim fixedPV As Double
+  Dim floatingPV As Double
 
-    CheckInitialized
-    CheckCurve in_Curve
+  CheckInitialized
+  CheckCurve in_cCurve
 
-    fixedPV = FixedLegPV(in_Curve)
-    floatingPV = FloatingLegPV(in_Curve)
+  fixedPV = FixedLegPV(in_cCurve)
+  floatingPV = FloatingLegPV(in_cCurve)
 
-    Select Case mPayReceive
-        Case "PAYER"
-            NPV = floatingPV - fixedPV
+  Select Case mPayReceive
+    Case "PAYER"
+      NPV = floatingPV - fixedPV
 
-        Case "RECEIVER"
-            NPV = fixedPV - floatingPV
+    Case "RECEIVER"
+      NPV = fixedPV - floatingPV
 
-        Case Else
-            Err.Raise vbObjectError + 2010, _
-                      "clsOISSwap.NPV", _
-                      "PayReceive が不正です。PAYER または RECEIVER を指定してください。"
-    End Select
+    Case Else
+      Err.Raise vbObjectError + 2010, _
+            "clsOISSwap.NPV", _
+            "PayReceive が不正です。PAYER または RECEIVER を指定してください。"
+  End Select
 
 End Function
 
 '============================================================
 ' Par Rate
 '
-' FloatingLegPV = FixedLegPV となる固定金利
+' FloatingLegPV = FixedLegPV となる固定金利。
 '
 ' ParRate = FloatingLegPV / FixedAnnuity
 '
@@ -285,8 +303,10 @@ End Function
 '
 ' Notional は分子・分母で消えるが、
 ' 分かりやすさのために入れて計算する。
+'
+' ParRate は PayReceive に依存しない。
 '============================================================
-Public Function ParRate(ByVal in_Curve As Object) As Double
+Public Function ParRate(ByVal in_cCurve As Object) As Double
 
   Dim cf As Variant
   Dim i As Long
@@ -296,31 +316,31 @@ Public Function ParRate(ByVal in_Curve As Object) As Double
   Dim dfPay As Double
   Dim annuity As Double
   Dim floatPV As Double
-  
+
   CheckInitialized
-  CheckCurve in_Curve
-  
+  CheckCurve in_cCurve
+
   cf = GetScheduleArray()
   n = UBound(cf, 1)
-  
+
   annuity = 0#
-  
+
   For i = 1 To n
-      accrualYearFrac = CDbl(cf(i, 4))
-      payDate = CDate(cf(i, 3))
-      dfPay = in_Curve.df(payDate)
-      
-      annuity = annuity + mNotional * accrualYearFrac * dfPay
+    accrualYearFrac = CDbl(cf(i, 4))
+    payDate = CDate(cf(i, 3))
+    dfPay = in_cCurve.df(payDate)
+
+    annuity = annuity + mNotional * accrualYearFrac * dfPay
   Next i
-  
+
   If annuity = 0# Then
-      Err.Raise vbObjectError + 2006, _
-                "clsOISSwap.ParRate", _
-                "Fixed annuity がゼロです。"
+    Err.Raise vbObjectError + 2006, _
+          "clsOISSwap.ParRate", _
+          "Fixed annuity がゼロです。"
   End If
-  
-  floatPV = FloatingLegPV(in_Curve)
-  
+
+  floatPV = FloatingLegPV(in_cCurve)
+
   ParRate = floatPV / annuity
 
 End Function
@@ -328,7 +348,7 @@ End Function
 '============================================================
 ' キャッシュフロー表を返す
 '
-' in_curve を渡した場合：
+' in_cCurve を渡した場合：
 '   ・DF
 '   ・Forward Rate
 '   ・Fixed Amount
@@ -336,8 +356,8 @@ End Function
 '   ・PV
 ' まで返す
 '
-' in_curve を省略した場合：
-'   ・日付とYearFracのみ返す
+' in_cCurve を省略した場合：
+'   ・日付、YearFrac、固定金利、固定金額のみ返す
 '
 ' 返却列：
 '   1  Period No
@@ -345,27 +365,28 @@ End Function
 '   3  End Date
 '   4  Payment Date
 '   5  YearFrac
-'   6  Fixed Rate
-'   7  Forward Rate
-'   8  DF Payment
-'   9  Fixed Amount
-'   10 Floating Amount
-'   11 Fixed PV
-'   12 Floating PV
-'   13 Net PV
+'   6  PayReceive
+'   7  Fixed Rate
+'   8  Forward Rate
+'   9  DF Payment
+'   10 Fixed Amount
+'   11 Floating Amount
+'   12 Fixed PV
+'   13 Floating PV
+'   14 Net PV
 '============================================================
-Public Function GetCashflowTable(Optional ByVal in_Curve As Object = Nothing) As Variant
+Public Function GetCashflowTable(Optional ByVal in_cCurve As Object = Nothing) As Variant
 
-  Dim Schedule As Variant
+  Dim schedule As Variant
   Dim result() As Variant
   Dim i As Long
   Dim n As Long
-  
+
   Dim periodStart As Date
   Dim periodEnd As Date
   Dim payDate As Date
   Dim yearFrac As Double
-  
+
   Dim fwdRate As Variant
   Dim dfPay As Variant
   Dim fixedAmount As Variant
@@ -373,97 +394,88 @@ Public Function GetCashflowTable(Optional ByVal in_Curve As Object = Nothing) As
   Dim fixedPV As Variant
   Dim floatingPV As Variant
   Dim netPV As Variant
-  
+
   CheckInitialized
-  
-  Schedule = GetScheduleArray()
-  n = UBound(Schedule, 1)
-  
-  ReDim result(1 To n + 1, 1 To 13)
-  
+
+  schedule = GetScheduleArray()
+  n = UBound(schedule, 1)
+
+  ReDim result(1 To n + 1, 1 To 14)
+
   result(1, 1) = "Period No"
   result(1, 2) = "Start Date"
   result(1, 3) = "End Date"
   result(1, 4) = "Payment Date"
   result(1, 5) = "YearFrac"
-  result(1, 6) = "Fixed Rate"
-  result(1, 7) = "Forward Rate"
-  result(1, 8) = "DF Payment"
-  result(1, 9) = "Fixed Amount"
-  result(1, 10) = "Floating Amount"
-  result(1, 11) = "Fixed PV"
-  result(1, 12) = "Floating PV"
-  result(1, 13) = "Net PV"
-  
+  result(1, 6) = "PayReceive"
+  result(1, 7) = "Fixed Rate"
+  result(1, 8) = "Forward Rate"
+  result(1, 9) = "DF Payment"
+  result(1, 10) = "Fixed Amount"
+  result(1, 11) = "Floating Amount"
+  result(1, 12) = "Fixed PV"
+  result(1, 13) = "Floating PV"
+  result(1, 14) = "Net PV"
+
   For i = 1 To n
-      
-      periodStart = CDate(Schedule(i, 1))
-      periodEnd = CDate(Schedule(i, 2))
-      payDate = CDate(Schedule(i, 3))
-      yearFrac = CDbl(Schedule(i, 4))
-      
-      If in_Curve Is Nothing Then
-          fwdRate = Empty
-          dfPay = Empty
-          fixedAmount = mNotional * mFixedRate * yearFrac
-          floatingAmount = Empty
-          fixedPV = Empty
-          floatingPV = Empty
-          netPV = Empty
-      Else
-          fwdRate = in_Curve.ForwardRateBetween(periodStart, periodEnd)
-          dfPay = in_Curve.df(payDate)
-          
-          fixedAmount = mNotional * mFixedRate * yearFrac
-          floatingAmount = mNotional * CDbl(fwdRate) * yearFrac
-          
-          fixedPV = CDbl(fixedAmount) * CDbl(dfPay)
-          floatingPV = CDbl(floatingAmount) * CDbl(dfPay)
+
+    periodStart = CDate(schedule(i, 1))
+    periodEnd = CDate(schedule(i, 2))
+    payDate = CDate(schedule(i, 3))
+    yearFrac = CDbl(schedule(i, 4))
+
+    fixedAmount = mNotional * mFixedRate * yearFrac
+
+    If in_cCurve Is Nothing Then
+      fwdRate = Empty
+      dfPay = Empty
+      floatingAmount = Empty
+      fixedPV = Empty
+      floatingPV = Empty
+      netPV = Empty
+    Else
+      fwdRate = in_cCurve.ForwardRateBetween(periodStart, periodEnd)
+      dfPay = in_cCurve.df(payDate)
+
+      floatingAmount = mNotional * CDbl(fwdRate) * yearFrac
+
+      fixedPV = CDbl(fixedAmount) * CDbl(dfPay)
+      floatingPV = CDbl(floatingAmount) * CDbl(dfPay)
+
+      Select Case mPayReceive
+        Case "PAYER"
           netPV = CDbl(floatingPV) - CDbl(fixedPV)
-      End If
-      
-      result(i + 1, 1) = i
-      result(i + 1, 2) = periodStart
-      result(i + 1, 3) = periodEnd
-      result(i + 1, 4) = payDate
-      result(i + 1, 5) = yearFrac
-      result(i + 1, 6) = mFixedRate
-      result(i + 1, 7) = fwdRate
-      result(i + 1, 8) = dfPay
-      result(i + 1, 9) = fixedAmount
-      result(i + 1, 10) = floatingAmount
-      result(i + 1, 11) = fixedPV
-      result(i + 1, 12) = floatingPV
-      result(i + 1, 13) = netPV
-  
+
+        Case "RECEIVER"
+          netPV = CDbl(fixedPV) - CDbl(floatingPV)
+
+        Case Else
+          Err.Raise vbObjectError + 2012, _
+                "clsOISSwap.GetCashflowTable", _
+                "PayReceive が不正です。PAYER または RECEIVER を指定してください。"
+      End Select
+    End If
+
+    result(i + 1, 1) = i
+    result(i + 1, 2) = periodStart
+    result(i + 1, 3) = periodEnd
+    result(i + 1, 4) = payDate
+    result(i + 1, 5) = yearFrac
+    result(i + 1, 6) = mPayReceive
+    result(i + 1, 7) = mFixedRate
+    result(i + 1, 8) = fwdRate
+    result(i + 1, 9) = dfPay
+    result(i + 1, 10) = fixedAmount
+    result(i + 1, 11) = floatingAmount
+    result(i + 1, 12) = fixedPV
+    result(i + 1, 13) = floatingPV
+    result(i + 1, 14) = netPV
+
   Next i
-  
+
   GetCashflowTable = result
 
 End Function
-
-
-Private Function NormalizePayReceive(ByVal in_PayReceive As String) As String
-
-  Dim s As String
-
-  s = UCase$(Trim$(in_PayReceive))
-
-  Select Case s
-      Case "PAYER", "PAY", "FIXEDPAYER", "PAYFIXED"
-          NormalizePayReceive = "PAYER"
-
-      Case "RECEIVER", "REC", "RECEIVE", "FIXEDRECEIVER", "RECEIVEFIXED"
-          NormalizePayReceive = "RECEIVER"
-
-      Case Else
-          Err.Raise vbObjectError + 2011, _
-                    "clsOISSwap.NormalizePayReceive", _
-                    "PayReceive は PAYER または RECEIVER を指定してください。"
-  End Select
-
-End Function
-
 
 '============================================================
 ' 内部関数：支払スケジュール生成
@@ -482,73 +494,76 @@ End Function
 '
 ' グリッド生成方針：
 '   ・前回調整後日付 + 1Y ではなく、
-'     常に StartDate + kY を起点にする
+'   常に StartDate + kY を起点にする
+'   ・Y は 12M として AddTenorMonths で処理する
 '   ・最後は必ず mEndDate
 '============================================================
 Private Function GetScheduleArray() As Variant
 
-  Dim Schedule() As Variant
+  Dim schedule() As Variant
   Dim tempEndDates() As Date
   Dim periodCount As Long
   Dim i As Long
-  
+
   Dim unadjustedEnd As Date
   Dim adjustedEnd As Date
   Dim periodStart As Date
   Dim periodEnd As Date
   Dim payDate As Date
   Dim yf As Double
-  
+
   CheckInitialized
-  
+
   periodCount = GetAnnualPeriodCount()
-  
+
   ReDim tempEndDates(1 To periodCount)
-  
+
   If periodCount = 1 Then
-      tempEndDates(1) = mEndDate
+    tempEndDates(1) = mEndDate
   Else
-      For i = 1 To periodCount - 1
-          unadjustedEnd = DateAdd("yyyy", i, mStartDate)
-          adjustedEnd = AdjustBusinessDay( _
-                          unadjustedEnd, _
-                          mBusinessDayConvention, _
-                          mCalendar _
-                        )
-          tempEndDates(i) = adjustedEnd
-      Next i
-      
-      tempEndDates(periodCount) = mEndDate
+    For i = 1 To periodCount - 1
+      unadjustedEnd = AddTenorMonths(mStartDate, 12 * i, True)
+
+      adjustedEnd = AdjustBusinessDay( _
+              unadjustedEnd, _
+              mBusinessDayConvention, _
+              mCalendar _
+              )
+
+      tempEndDates(i) = adjustedEnd
+    Next i
+
+    tempEndDates(periodCount) = mEndDate
   End If
-  
-  ReDim Schedule(1 To periodCount, 1 To 4)
-  
+
+  ReDim schedule(1 To periodCount, 1 To 4)
+
   periodStart = mStartDate
-  
+
   For i = 1 To periodCount
-      
-      periodEnd = tempEndDates(i)
-      payDate = GetWorkday(periodEnd, mPaymentLag, mCalendar)
-      yf = YearFracAct365F(periodStart, periodEnd)
-      
-      Schedule(i, 1) = periodStart
-      Schedule(i, 2) = periodEnd
-      Schedule(i, 3) = payDate
-      Schedule(i, 4) = yf
-      
-      periodStart = periodEnd
-  
+
+    periodEnd = tempEndDates(i)
+    payDate = AddBusinessDays(periodEnd, mPaymentLag, mCalendar)
+    yf = YearFracAct365F(periodStart, periodEnd)
+
+    schedule(i, 1) = periodStart
+    schedule(i, 2) = periodEnd
+    schedule(i, 3) = payDate
+    schedule(i, 4) = yf
+
+    periodStart = periodEnd
+
   Next i
-  
-  GetScheduleArray = Schedule
+
+  GetScheduleArray = schedule
 
 End Function
 
 '============================================================
 ' 内部関数：年1回払いの期間数
 '
-' 1年以内なら1
-' 1年超なら、StartDateからEndDateまでの年数に応じて分割
+' 1年以内なら1。
+' 1年超なら、StartDateからEndDateまでの年数に応じて分割する。
 '
 ' 例：
 '   6M  -> 1
@@ -562,37 +577,45 @@ Private Function GetAnnualPeriodCount() As Long
 
   Dim y As Long
   Dim candidate As Date
-  
+
   y = 1
-  
-  candidate = DateAdd("yyyy", 1, mStartDate)
-  
+
+  candidate = AddTenorMonths(mStartDate, 12, True)
+
   If candidate >= mEndDate Then
-      GetAnnualPeriodCount = 1
-      Exit Function
+    GetAnnualPeriodCount = 1
+    Exit Function
   End If
-  
-  Do While DateAdd("yyyy", y, mStartDate) < mEndDate
-      y = y + 1
+
+  Do While AddTenorMonths(mStartDate, 12 * y, True) < mEndDate
+    y = y + 1
   Loop
-  
+
   GetAnnualPeriodCount = y
 
 End Function
 
 '============================================================
-' 内部関数：ACT/365 Fixed
+' 内部関数：PayReceive 正規化
 '============================================================
-Private Function YearFracAct365F(ByVal in_StartDate As Date, _
-                                 ByVal in_EndDate As Date) As Double
+Private Function NormalizePayReceive(ByVal in_PayReceive As String) As String
 
-  If in_EndDate <= in_StartDate Then
-      Err.Raise vbObjectError + 2007, _
-                "clsOISSwap.YearFracAct365F", _
-                "EndDate は StartDate より後の日付にしてください。"
-  End If
-  
-  YearFracAct365F = CDbl(in_EndDate - in_StartDate) / 365#
+  Dim s As String
+
+  s = UCase$(Trim$(in_PayReceive))
+
+  Select Case s
+    Case "PAYER", "PAY", "FIXEDPAYER", "PAYFIXED"
+      NormalizePayReceive = "PAYER"
+
+    Case "RECEIVER", "REC", "RECEIVE", "FIXEDRECEIVER", "RECEIVEFIXED"
+      NormalizePayReceive = "RECEIVER"
+
+    Case Else
+      Err.Raise vbObjectError + 2011, _
+            "clsOISSwap.NormalizePayReceive", _
+            "PayReceive は PAYER または RECEIVER を指定してください。"
+  End Select
 
 End Function
 
@@ -602,9 +625,9 @@ End Function
 Private Sub CheckInitialized()
 
   If Not mIsInitialized Then
-      Err.Raise vbObjectError + 2008, _
-                "clsOISSwap", _
-                "clsOISSwap が初期化されていません。Init を先に実行してください。"
+    Err.Raise vbObjectError + 2008, _
+          "clsOISSwap", _
+          "clsOISSwap が初期化されていません。Init を先に実行してください。"
   End If
 
 End Sub
@@ -612,12 +635,12 @@ End Sub
 '============================================================
 ' 内部チェック：カーブが渡されているか
 '============================================================
-Private Sub CheckCurve(ByVal in_Curve As Object)
+Private Sub CheckCurve(ByVal in_cCurve As Object)
 
-  If in_Curve Is Nothing Then
-      Err.Raise vbObjectError + 2009, _
-                "clsOISSwap", _
-                "カーブオブジェクトが指定されていません。"
+  If in_cCurve Is Nothing Then
+    Err.Raise vbObjectError + 2009, _
+          "clsOISSwap", _
+          "カーブオブジェクトが指定されていません。"
   End If
 
 End Sub
