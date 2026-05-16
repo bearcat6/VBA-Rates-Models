@@ -273,4 +273,61 @@ P  / Preceding
 8. OIS Swap のPV、NPV、ParRate、キャッシュフロー表取得
 ```
 
-Cap Volatility 以降は、OISカーブの実装後に設計を具体化する。
+## 8.Cap Volatility Bootstrap の設計方針
+
+本プロジェクトでは、Cap取引そのものを商品クラスとして評価することは当面の目的としない。
+
+目的は、OIS / TONA ベースの変動金利に上限が付いた商品の caplet 部分を評価するために、quoted cap normal volatility から caplet normal volatility term structure を構築することである。
+
+そのため、Cap商品クラス `clsCap` は作成しない。
+
+Caplet単体のクラスも作成せず、caplet PV は標準モジュール `mdl_CapFormula` の Bachelier式で計算する。
+
+### clsCapVolBootstrapper
+
+#### 役割
+
+Quoted cap normal vol から、期間別 caplet normal vol をブートストラップする。
+
+#### 主な責務
+
+- Cap maturity ごとの quoted cap normal vol を受け取る
+- 対象期間の caplet schedule を内部生成する
+- 各capletの forward rate を discount curve から取得する
+- Bachelier式により caplet PV を計算する
+- 既知期間の caplet vol を固定し、新規期間の caplet vol を二分法で解く
+- 結果を `clsCapVolTermStructure` に格納する
+
+### clsCapVolTermStructure
+
+#### 役割
+
+ブートストラップ済みの caplet normal volatility term structure を保持する。
+
+#### 主な責務
+
+- caplet期間ごとの normal vol を保持する
+- period end date または fixing date により normal vol を取得する
+- total variance を計算する
+- 結果をシート出力する
+
+### mdl_CapFormula
+
+#### 役割
+
+Caplet評価に必要な数式関数を提供する。
+
+#### 主な関数
+
+- NormalPDF
+- NormalCDF
+- BachelierCallValue
+- CapletPV_Normal
+
+### mdl_CapBootstrap
+
+#### 役割
+
+Cap volatility bootstrap のテスト・サンプル実行用モジュール。
+
+本モジュールは本番ロジックではなく、動作確認用の入口として位置づける。
