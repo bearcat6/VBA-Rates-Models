@@ -130,11 +130,11 @@ End Function
 ' Expiryも文字列で指定できる版
 '
 ' 使用例：
-' =ATM_SWAPTION_VOL_Text("18M","10Y",SwaptionVol!A1:F7)
-' =ATM_SWAPTION_VOL_Text("1.5Y","10Y",SwaptionVol!A1:F7)
+' =ATM_SWAPTION_VOL_TEXT("18M","10Y",SwaptionVol!A1:F7)
+' =ATM_SWAPTION_VOL_TEXT("1.5Y","10Y",SwaptionVol!A1:F7)
 '
 '====================================================
-Public Function ATM_SWAPTION_VOL_Text( _
+Public Function ATM_SWAPTION_VOL_TEXT( _
   ByVal expiryText As String, _
   ByVal tenorText As String, _
   ByVal matrixRange As Range, _
@@ -151,12 +151,12 @@ Public Function ATM_SWAPTION_VOL_Text( _
   
   surf.InitializeFromRange matrixRange, allowFlatExtrapolation
   
-  ATM_SWAPTION_VOL_Text = surf.Vol(expiryYears, tenorText)
+  ATM_SWAPTION_VOL_TEXT = surf.Vol(expiryYears, tenorText)
   
   Exit Function
 
 ErrHandler:
-  ATM_SWAPTION_VOL_Text = CVErr(xlErrValue)
+  ATM_SWAPTION_VOL_TEXT = CVErr(xlErrValue)
 
 End Function
 
