@@ -381,6 +381,6 @@ clsSwaptionVol を利用するための補助関数およびExcel関数ラッパ
 ```text
 SwaptionTenorToYears(in_TenorText) As Double
 ATM_SWAPTION_VOL(in_ExpiryYears, in_TenorText, in_MatrixRange, Optional in_AllowFlatExtrapolation) As Variant
-ATM_SWAPTION_VOL2(in_ExpiryText, in_TenorText, in_MatrixRange, Optional in_AllowFlatExtrapolation) As Variant
+ATM_SWAPTION_VOL_TEXT(in_ExpiryText, in_TenorText, in_MatrixRange, Optional in_AllowFlatExtrapolation) As Variant
 SWAPTION_TENOR_TO_YEARS(in_TenorText) As Variant
 ```
