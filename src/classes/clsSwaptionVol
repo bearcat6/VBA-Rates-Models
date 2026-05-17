@@ -13,11 +13,11 @@ Option Explicit
 '
 ' 入力マトリックス前提：
 '
-'        1Y      2Y      5Y      10Y
-' 1M     vol     vol     vol     vol
-' 3M     vol     vol     vol     vol
-' 6M     vol     vol     vol     vol
-' 1Y     vol     vol     vol     vol
+'    1Y    2Y    5Y    10Y
+' 1M   vol   vol   vol   vol
+' 3M   vol   vol   vol   vol
+' 6M   vol   vol   vol   vol
+' 1Y   vol   vol   vol   vol
 '
 ' 補間方針：
 '   ・Tenor方向  ：Variance = Vol^2 で線形補間
@@ -39,73 +39,73 @@ Private mAllowFlatExtrapolation As Boolean
 ' 初期化
 '====================================================
 Public Sub InitializeFromRange( _
-    ByVal matrixRange As Range, _
-    Optional ByVal allowFlatExtrapolation As Boolean = False)
+  ByVal matrixRange As Range, _
+  Optional ByVal allowFlatExtrapolation As Boolean = False)
 
-    Dim i As Long
-    Dim j As Long
+  Dim i As Long
+  Dim j As Long
+  
+  If matrixRange Is Nothing Then
+    Err.Raise vbObjectError + 1000, "clsSwaptionVol.InitializeFromRange", _
+          "matrixRange is Nothing."
+  End If
+  
+  If matrixRange.Rows.Count < 2 Or matrixRange.Columns.Count < 2 Then
+    Err.Raise vbObjectError + 1001, "clsSwaptionVol.InitializeFromRange", _
+          "Vol matrix range is too small."
+  End If
+  
+  mNumExpiries = matrixRange.Rows.Count - 1
+  mNumTenors = matrixRange.Columns.Count - 1
+  
+  ReDim mExpiries(1 To mNumExpiries)
+  ReDim mTenors(1 To mNumTenors)
+  ReDim mVols(1 To mNumExpiries, 1 To mNumTenors)
+  
+  mAllowFlatExtrapolation = allowFlatExtrapolation
+  
+  '----------------------------------------
+  ' Tenor headers
+  ' 1行目、2列目以降
+  '----------------------------------------
+  For j = 1 To mNumTenors
+    mTenors(j) = SwaptionTenorToYears(CStr(matrixRange.Cells(1, j + 1).Value))
+  Next j
+  
+  '----------------------------------------
+  ' Expiry headers and Vol matrix
+  ' 1列目、2行目以降
+  '----------------------------------------
+  For i = 1 To mNumExpiries
+  
+    mExpiries(i) = SwaptionTenorToYears(CStr(matrixRange.Cells(i + 1, 1).Value))
     
-    If matrixRange Is Nothing Then
-        Err.Raise vbObjectError + 1000, "clsSwaptionVol.InitializeFromRange", _
-                  "matrixRange is Nothing."
-    End If
-    
-    If matrixRange.Rows.Count < 2 Or matrixRange.Columns.Count < 2 Then
-        Err.Raise vbObjectError + 1001, "clsSwaptionVol.InitializeFromRange", _
-                  "Vol matrix range is too small."
-    End If
-    
-    mNumExpiries = matrixRange.Rows.Count - 1
-    mNumTenors = matrixRange.Columns.Count - 1
-    
-    ReDim mExpiries(1 To mNumExpiries)
-    ReDim mTenors(1 To mNumTenors)
-    ReDim mVols(1 To mNumExpiries, 1 To mNumTenors)
-    
-    mAllowFlatExtrapolation = allowFlatExtrapolation
-    
-    '----------------------------------------
-    ' Tenor headers
-    ' 1行目、2列目以降
-    '----------------------------------------
     For j = 1 To mNumTenors
-        mTenors(j) = SwaptionTenorToYears(CStr(matrixRange.Cells(1, j + 1).Value))
+      
+      If IsEmpty(matrixRange.Cells(i + 1, j + 1).Value) Then
+        Err.Raise vbObjectError + 1002, "clsSwaptionVol.InitializeFromRange", _
+              "Vol matrix contains empty cell."
+      End If
+      
+      If Not IsNumeric(matrixRange.Cells(i + 1, j + 1).Value) Then
+        Err.Raise vbObjectError + 1003, "clsSwaptionVol.InitializeFromRange", _
+              "Vol matrix contains non-numeric value."
+      End If
+      
+      mVols(i, j) = CDbl(matrixRange.Cells(i + 1, j + 1).Value)
+      
+      If mVols(i, j) < 0 Then
+        Err.Raise vbObjectError + 1004, "clsSwaptionVol.InitializeFromRange", _
+              "Volatility must be non-negative."
+      End If
+      
     Next j
-    
-    '----------------------------------------
-    ' Expiry headers and Vol matrix
-    ' 1列目、2行目以降
-    '----------------------------------------
-    For i = 1 To mNumExpiries
-    
-        mExpiries(i) = SwaptionTenorToYears(CStr(matrixRange.Cells(i + 1, 1).Value))
-        
-        For j = 1 To mNumTenors
-            
-            If IsEmpty(matrixRange.Cells(i + 1, j + 1).Value) Then
-                Err.Raise vbObjectError + 1002, "clsSwaptionVol.InitializeFromRange", _
-                          "Vol matrix contains empty cell."
-            End If
-            
-            If Not IsNumeric(matrixRange.Cells(i + 1, j + 1).Value) Then
-                Err.Raise vbObjectError + 1003, "clsSwaptionVol.InitializeFromRange", _
-                          "Vol matrix contains non-numeric value."
-            End If
-            
-            mVols(i, j) = CDbl(matrixRange.Cells(i + 1, j + 1).Value)
-            
-            If mVols(i, j) < 0 Then
-                Err.Raise vbObjectError + 1004, "clsSwaptionVol.InitializeFromRange", _
-                          "Volatility must be non-negative."
-            End If
-            
-        Next j
-    Next i
-    
-    ValidateStrictlyIncreasing mExpiries, "Expiry"
-    ValidateStrictlyIncreasing mTenors, "Tenor"
-    
-    mIsInitialized = True
+  Next i
+  
+  ValidateStrictlyIncreasing mExpiries, "Expiry"
+  ValidateStrictlyIncreasing mTenors, "Tenor"
+  
+  mIsInitialized = True
 
 End Sub
 
@@ -116,14 +116,14 @@ End Sub
 ' tenorText   : 例 "10Y", "20Y", "18M"
 '====================================================
 Public Function Vol( _
-    ByVal expiryYears As Double, _
-    ByVal tenorText As String) As Double
+  ByVal expiryYears As Double, _
+  ByVal tenorText As String) As Double
 
-    Dim tenorYears As Double
-    
-    tenorYears = SwaptionTenorToYears(tenorText)
-    
-    Vol = VolByYears(expiryYears, tenorYears)
+  Dim tenorYears As Double
+  
+  tenorYears = SwaptionTenorToYears(tenorText)
+  
+  Vol = VolByYears(expiryYears, tenorYears)
 
 End Function
 
@@ -134,83 +134,83 @@ End Function
 ' tenorYears  : 例 10
 '====================================================
 Public Function VolByYears( _
-    ByVal expiryYears As Double, _
-    ByVal tenorYears As Double) As Double
+  ByVal expiryYears As Double, _
+  ByVal tenorYears As Double) As Double
 
-    Dim iLow As Long
-    Dim iHigh As Long
-    Dim jLow As Long
-    Dim jHigh As Long
-    
-    Dim e1 As Double
-    Dim e2 As Double
-    Dim t1 As Double
-    Dim t2 As Double
-    
-    Dim v11 As Double
-    Dim v12 As Double
-    Dim v21 As Double
-    Dim v22 As Double
-    
-    Dim varAtLowExpiry As Double
-    Dim varAtHighExpiry As Double
-    Dim totalVariance As Double
-    
-    If Not mIsInitialized Then
-        Err.Raise vbObjectError + 1100, "clsSwaptionVol.VolByYears", _
-                  "Swaption vol surface is not initialized."
-    End If
-    
-    If expiryYears <= 0 Then
-        Err.Raise vbObjectError + 1101, "clsSwaptionVol.VolByYears", _
-                  "Expiry must be positive."
-    End If
-    
-    If tenorYears <= 0 Then
-        Err.Raise vbObjectError + 1102, "clsSwaptionVol.VolByYears", _
-                  "Tenor must be positive."
-    End If
-    
-    FindBracket mExpiries, expiryYears, iLow, iHigh, mAllowFlatExtrapolation
-    FindBracket mTenors, tenorYears, jLow, jHigh, mAllowFlatExtrapolation
-    
-    e1 = mExpiries(iLow)
-    e2 = mExpiries(iHigh)
-    t1 = mTenors(jLow)
-    t2 = mTenors(jHigh)
-    
-    v11 = mVols(iLow, jLow)
-    v12 = mVols(iLow, jHigh)
-    v21 = mVols(iHigh, jLow)
-    v22 = mVols(iHigh, jHigh)
-    
-    '----------------------------------------
-    ' 1. Tenor方向の補間
-    '    同一Expiry上で variance = vol^2 を線形補間
-    '----------------------------------------
-    varAtLowExpiry = InterpVariance(tenorYears, t1, t2, v11, v12)
-    varAtHighExpiry = InterpVariance(tenorYears, t1, t2, v21, v22)
-    
-    '----------------------------------------
-    ' 2. Expiry方向の補間
-    '    total variance = variance × expiry を線形補間
-    '----------------------------------------
-    totalVariance = InterpTotalVariance( _
-                        expiryYears, _
-                        e1, _
-                        e2, _
-                        varAtLowExpiry, _
-                        varAtHighExpiry)
-    
-    '----------------------------------------
-    ' 3. Volに戻す
-    '----------------------------------------
-    If totalVariance < 0 Then
-        Err.Raise vbObjectError + 1103, "clsSwaptionVol.VolByYears", _
-                  "Interpolated total variance is negative."
-    End If
-    
-    VolByYears = Sqr(totalVariance / expiryYears)
+  Dim iLow As Long
+  Dim iHigh As Long
+  Dim jLow As Long
+  Dim jHigh As Long
+  
+  Dim e1 As Double
+  Dim e2 As Double
+  Dim t1 As Double
+  Dim t2 As Double
+  
+  Dim v11 As Double
+  Dim v12 As Double
+  Dim v21 As Double
+  Dim v22 As Double
+  
+  Dim varAtLowExpiry As Double
+  Dim varAtHighExpiry As Double
+  Dim totalVariance As Double
+  
+  If Not mIsInitialized Then
+    Err.Raise vbObjectError + 1100, "clsSwaptionVol.VolByYears", _
+          "Swaption vol surface is not initialized."
+  End If
+  
+  If expiryYears <= 0 Then
+    Err.Raise vbObjectError + 1101, "clsSwaptionVol.VolByYears", _
+          "Expiry must be positive."
+  End If
+  
+  If tenorYears <= 0 Then
+    Err.Raise vbObjectError + 1102, "clsSwaptionVol.VolByYears", _
+          "Tenor must be positive."
+  End If
+  
+  FindBracket mExpiries, expiryYears, iLow, iHigh, mAllowFlatExtrapolation
+  FindBracket mTenors, tenorYears, jLow, jHigh, mAllowFlatExtrapolation
+  
+  e1 = mExpiries(iLow)
+  e2 = mExpiries(iHigh)
+  t1 = mTenors(jLow)
+  t2 = mTenors(jHigh)
+  
+  v11 = mVols(iLow, jLow)
+  v12 = mVols(iLow, jHigh)
+  v21 = mVols(iHigh, jLow)
+  v22 = mVols(iHigh, jHigh)
+  
+  '----------------------------------------
+  ' 1. Tenor方向の補間
+  '  同一Expiry上で variance = vol^2 を線形補間
+  '----------------------------------------
+  varAtLowExpiry = InterpVariance(tenorYears, t1, t2, v11, v12)
+  varAtHighExpiry = InterpVariance(tenorYears, t1, t2, v21, v22)
+  
+  '----------------------------------------
+  ' 2. Expiry方向の補間
+  '  total variance = variance × expiry を線形補間
+  '----------------------------------------
+  totalVariance = InterpTotalVariance( _
+            expiryYears, _
+            e1, _
+            e2, _
+            varAtLowExpiry, _
+            varAtHighExpiry)
+  
+  '----------------------------------------
+  ' 3. Volに戻す
+  '----------------------------------------
+  If totalVariance < 0 Then
+    Err.Raise vbObjectError + 1103, "clsSwaptionVol.VolByYears", _
+          "Interpolated total variance is negative."
+  End If
+  
+  VolByYears = Sqr(totalVariance / expiryYears)
 
 End Function
 
@@ -218,21 +218,21 @@ End Function
 ' 初期化済み判定
 '====================================================
 Public Property Get IsInitialized() As Boolean
-    IsInitialized = mIsInitialized
+  IsInitialized = mIsInitialized
 End Property
 
 '====================================================
 ' Expiry数
 '====================================================
 Public Property Get NumExpiries() As Long
-    NumExpiries = mNumExpiries
+  NumExpiries = mNumExpiries
 End Property
 
 '====================================================
 ' Tenor数
 '====================================================
 Public Property Get NumTenors() As Long
-    NumTenors = mNumTenors
+  NumTenors = mNumTenors
 End Property
 
 '====================================================
@@ -240,17 +240,17 @@ End Property
 '====================================================
 Public Function ExpiryAt(ByVal index As Long) As Double
 
-    If Not mIsInitialized Then
-        Err.Raise vbObjectError + 1200, "clsSwaptionVol.ExpiryAt", _
-                  "Swaption vol surface is not initialized."
-    End If
-    
-    If index < 1 Or index > mNumExpiries Then
-        Err.Raise vbObjectError + 1201, "clsSwaptionVol.ExpiryAt", _
-                  "Expiry index is out of range."
-    End If
-    
-    ExpiryAt = mExpiries(index)
+  If Not mIsInitialized Then
+    Err.Raise vbObjectError + 1200, "clsSwaptionVol.ExpiryAt", _
+          "Swaption vol surface is not initialized."
+  End If
+  
+  If index < 1 Or index > mNumExpiries Then
+    Err.Raise vbObjectError + 1201, "clsSwaptionVol.ExpiryAt", _
+          "Expiry index is out of range."
+  End If
+  
+  ExpiryAt = mExpiries(index)
 
 End Function
 
@@ -259,17 +259,17 @@ End Function
 '====================================================
 Public Function TenorAt(ByVal index As Long) As Double
 
-    If Not mIsInitialized Then
-        Err.Raise vbObjectError + 1210, "clsSwaptionVol.TenorAt", _
-                  "Swaption vol surface is not initialized."
-    End If
-    
-    If index < 1 Or index > mNumTenors Then
-        Err.Raise vbObjectError + 1211, "clsSwaptionVol.TenorAt", _
-                  "Tenor index is out of range."
-    End If
-    
-    TenorAt = mTenors(index)
+  If Not mIsInitialized Then
+    Err.Raise vbObjectError + 1210, "clsSwaptionVol.TenorAt", _
+          "Swaption vol surface is not initialized."
+  End If
+  
+  If index < 1 Or index > mNumTenors Then
+    Err.Raise vbObjectError + 1211, "clsSwaptionVol.TenorAt", _
+          "Tenor index is out of range."
+  End If
+  
+  TenorAt = mTenors(index)
 
 End Function
 
@@ -277,25 +277,25 @@ End Function
 ' 元のグリッド上のVolを返す
 '====================================================
 Public Function GridVol( _
-    ByVal expiryIndex As Long, _
-    ByVal tenorIndex As Long) As Double
+  ByVal expiryIndex As Long, _
+  ByVal tenorIndex As Long) As Double
 
-    If Not mIsInitialized Then
-        Err.Raise vbObjectError + 1220, "clsSwaptionVol.GridVol", _
-                  "Swaption vol surface is not initialized."
-    End If
-    
-    If expiryIndex < 1 Or expiryIndex > mNumExpiries Then
-        Err.Raise vbObjectError + 1221, "clsSwaptionVol.GridVol", _
-                  "Expiry index is out of range."
-    End If
-    
-    If tenorIndex < 1 Or tenorIndex > mNumTenors Then
-        Err.Raise vbObjectError + 1222, "clsSwaptionVol.GridVol", _
-                  "Tenor index is out of range."
-    End If
-    
-    GridVol = mVols(expiryIndex, tenorIndex)
+  If Not mIsInitialized Then
+    Err.Raise vbObjectError + 1220, "clsSwaptionVol.GridVol", _
+          "Swaption vol surface is not initialized."
+  End If
+  
+  If expiryIndex < 1 Or expiryIndex > mNumExpiries Then
+    Err.Raise vbObjectError + 1221, "clsSwaptionVol.GridVol", _
+          "Expiry index is out of range."
+  End If
+  
+  If tenorIndex < 1 Or tenorIndex > mNumTenors Then
+    Err.Raise vbObjectError + 1222, "clsSwaptionVol.GridVol", _
+          "Tenor index is out of range."
+  End If
+  
+  GridVol = mVols(expiryIndex, tenorIndex)
 
 End Function
 
@@ -312,27 +312,27 @@ End Function
 '   variance = vol^2
 '====================================================
 Private Function InterpVariance( _
-    ByVal x As Double, _
-    ByVal x1 As Double, _
-    ByVal x2 As Double, _
-    ByVal v1 As Double, _
-    ByVal v2 As Double) As Double
+  ByVal x As Double, _
+  ByVal x1 As Double, _
+  ByVal x2 As Double, _
+  ByVal v1 As Double, _
+  ByVal v2 As Double) As Double
 
-    Dim w As Double
-    Dim var1 As Double
-    Dim var2 As Double
-    
-    var1 = v1 * v1
-    var2 = v2 * v2
-    
-    If x1 = x2 Then
-        InterpVariance = var1
-        Exit Function
-    End If
-    
-    w = (x - x1) / (x2 - x1)
-    
-    InterpVariance = var1 + w * (var2 - var1)
+  Dim w As Double
+  Dim var1 As Double
+  Dim var2 As Double
+  
+  var1 = v1 * v1
+  var2 = v2 * v2
+  
+  If x1 = x2 Then
+    InterpVariance = var1
+    Exit Function
+  End If
+  
+  w = (x - x1) / (x2 - x1)
+  
+  InterpVariance = var1 + w * (var2 - var1)
 
 End Function
 
@@ -345,27 +345,27 @@ End Function
 '   total variance = vol^2 × expiry
 '====================================================
 Private Function InterpTotalVariance( _
-    ByVal expiry As Double, _
-    ByVal e1 As Double, _
-    ByVal e2 As Double, _
-    ByVal variance1 As Double, _
-    ByVal variance2 As Double) As Double
+  ByVal expiry As Double, _
+  ByVal e1 As Double, _
+  ByVal e2 As Double, _
+  ByVal variance1 As Double, _
+  ByVal variance2 As Double) As Double
 
-    Dim w As Double
-    Dim tv1 As Double
-    Dim tv2 As Double
-    
-    tv1 = variance1 * e1
-    tv2 = variance2 * e2
-    
-    If e1 = e2 Then
-        InterpTotalVariance = tv1
-        Exit Function
-    End If
-    
-    w = (expiry - e1) / (e2 - e1)
-    
-    InterpTotalVariance = tv1 + w * (tv2 - tv1)
+  Dim w As Double
+  Dim tv1 As Double
+  Dim tv2 As Double
+  
+  tv1 = variance1 * e1
+  tv2 = variance2 * e2
+  
+  If e1 = e2 Then
+    InterpTotalVariance = variance1 * expiry
+    Exit Function
+  End If
+  
+  w = (expiry - e1) / (e2 - e1)
+  
+  InterpTotalVariance = tv1 + w * (tv2 - tv1)
 
 End Function
 
@@ -379,61 +379,61 @@ End Function
 '   範囲外なら端点固定
 '====================================================
 Private Sub FindBracket( _
-    ByRef grid() As Double, _
-    ByVal x As Double, _
-    ByRef idxLow As Long, _
-    ByRef idxHigh As Long, _
-    ByVal allowFlatExtrapolation As Boolean)
+  ByRef grid() As Double, _
+  ByVal x As Double, _
+  ByRef idxLow As Long, _
+  ByRef idxHigh As Long, _
+  ByVal allowFlatExtrapolation As Boolean)
 
-    Dim i As Long
-    Dim n As Long
-    
-    n = UBound(grid)
-    
-    If x < grid(1) Then
-        If allowFlatExtrapolation Then
-            idxLow = 1
-            idxHigh = 1
-            Exit Sub
-        Else
-            Err.Raise vbObjectError + 1300, "clsSwaptionVol.FindBracket", _
-                      "Value is below surface range: " & CStr(x)
-        End If
+  Dim i As Long
+  Dim n As Long
+  
+  n = UBound(grid)
+  
+  If x < grid(1) Then
+    If allowFlatExtrapolation Then
+      idxLow = 1
+      idxHigh = 1
+      Exit Sub
+    Else
+      Err.Raise vbObjectError + 1300, "clsSwaptionVol.FindBracket", _
+            "Value is below surface range: " & CStr(x)
     End If
-    
-    If x > grid(n) Then
-        If allowFlatExtrapolation Then
-            idxLow = n
-            idxHigh = n
-            Exit Sub
-        Else
-            Err.Raise vbObjectError + 1301, "clsSwaptionVol.FindBracket", _
-                      "Value is above surface range: " & CStr(x)
-        End If
+  End If
+  
+  If x > grid(n) Then
+    If allowFlatExtrapolation Then
+      idxLow = n
+      idxHigh = n
+      Exit Sub
+    Else
+      Err.Raise vbObjectError + 1301, "clsSwaptionVol.FindBracket", _
+            "Value is above surface range: " & CStr(x)
     End If
-    
-    If x = grid(1) Then
-        idxLow = 1
-        idxHigh = 1
-        Exit Sub
+  End If
+  
+  If x = grid(1) Then
+    idxLow = 1
+    idxHigh = 1
+    Exit Sub
+  End If
+  
+  If x = grid(n) Then
+    idxLow = n
+    idxHigh = n
+    Exit Sub
+  End If
+  
+  For i = 1 To n - 1
+    If grid(i) <= x And x <= grid(i + 1) Then
+      idxLow = i
+      idxHigh = i + 1
+      Exit Sub
     End If
-    
-    If x = grid(n) Then
-        idxLow = n
-        idxHigh = n
-        Exit Sub
-    End If
-    
-    For i = 1 To n - 1
-        If grid(i) <= x And x <= grid(i + 1) Then
-            idxLow = i
-            idxHigh = i + 1
-            Exit Sub
-        End If
-    Next i
-    
-    Err.Raise vbObjectError + 1302, "clsSwaptionVol.FindBracket", _
-              "Could not find bracket for value: " & CStr(x)
+  Next i
+  
+  Err.Raise vbObjectError + 1302, "clsSwaptionVol.FindBracket", _
+        "Could not find bracket for value: " & CStr(x)
 
 End Sub
 
@@ -441,17 +441,17 @@ End Sub
 ' 昇順チェック
 '====================================================
 Private Sub ValidateStrictlyIncreasing( _
-    ByRef grid() As Double, _
-    ByVal label As String)
+  ByRef grid() As Double, _
+  ByVal label As String)
 
-    Dim i As Long
-    
-    For i = LBound(grid) + 1 To UBound(grid)
-        If grid(i) <= grid(i - 1) Then
-            Err.Raise vbObjectError + 1400, "clsSwaptionVol.ValidateStrictlyIncreasing", _
-                      label & " grid must be strictly increasing."
-        End If
-    Next i
+  Dim i As Long
+  
+  For i = LBound(grid) + 1 To UBound(grid)
+    If grid(i) <= grid(i - 1) Then
+      Err.Raise vbObjectError + 1400, "clsSwaptionVol.ValidateStrictlyIncreasing", _
+            label & " grid must be strictly increasing."
+    End If
+  Next i
 
 End Sub
 
