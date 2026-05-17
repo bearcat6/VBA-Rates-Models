@@ -368,7 +368,7 @@ VolByYears(in_ExpiryYears, in_TenorYears) As Double
 ExpiryAt(in_Index) As Double
 TenorAt(in_Index) As Double
 GridVol(in_ExpiryIndex, in_TenorIndex) As Double
-
+```
 
 ### mdl_SwaptionVol
 
