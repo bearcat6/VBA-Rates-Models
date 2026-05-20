@@ -1,0 +1,480 @@
+
+Option Explicit
+
+Private mCurve As Object
+
+Private mOpYears As Double
+Private mTenorYears As Double
+
+Private mForward As Double
+Private mAnnuity As Double
+
+Private mAlpha As Double
+Private mBeta As Double
+Private mRho As Double
+Private mNu As Double
+
+Private mHasError As Boolean
+Private mLastError As String
+
+Private mGridBuilt As Boolean
+
+Private mK() As Double
+Private mVol() As Double
+Private mPrice() As Double
+Private mDensity() As Double
+Private mCDF() As Double
+
+Private mKMin As Double
+Private mKMax As Double
+Private mDK As Double
+
+'========================
+' 初期化
+'========================
+Public Sub Init( _
+    ByVal curve As Object, _
+    ByVal OpYears As Double, _
+    ByVal TenorYears As Double, _
+    ByVal Alpha As Double, _
+    Optional ByVal Beta As Double = 0#, _
+    Optional ByVal Rho As Double = 0#, _
+    Optional ByVal Nu As Double = 0# _
+)
+
+    On Error GoTo EH
+
+    Set mCurve = curve
+
+    mOpYears = OpYears
+    mTenorYears = TenorYears
+
+    mForward = curve.ForwardSwapRate(OpYears, TenorYears)
+    mAnnuity = curve.SwapAnnuity(OpYears, TenorYears)
+
+    mAlpha = Alpha
+    mBeta = Beta
+    mRho = Rho
+    mNu = Nu
+
+    mHasError = False
+    mLastError = vbNullString
+    mGridBuilt = False
+
+    If Not IsValid Then
+        SetError "SABRパラメータまたはカーブ情報が不正です。"
+    End If
+
+    Exit Sub
+
+EH:
+    SetError "CSABRNormal.Initでエラー: " & Err.Description
+End Sub
+
+'========================
+' プロパティ
+'========================
+Public Property Get Alpha() As Double
+    Alpha = mAlpha
+End Property
+
+Public Property Get Beta() As Double
+    Beta = mBeta
+End Property
+
+Public Property Get Rho() As Double
+    Rho = mRho
+End Property
+
+Public Property Get Nu() As Double
+    Nu = mNu
+End Property
+
+Public Property Get ForwardRate() As Double
+    ForwardRate = mForward
+End Property
+
+Public Property Get Annuity() As Double
+    Annuity = mAnnuity
+End Property
+
+Public Property Get HasError() As Boolean
+    HasError = mHasError
+End Property
+
+Public Property Get LastError() As String
+    LastError = mLastError
+End Property
+
+Public Sub SetError(ByVal msg As String)
+    mHasError = True
+    mLastError = msg
+End Sub
+
+'========================
+' パラメータ妥当性
+'========================
+Public Property Get IsValid() As Boolean
+
+    If mOpYears <= 0# Then Exit Property
+    If mTenorYears <= 0# Then Exit Property
+    If mAnnuity <= 0# Then Exit Property
+
+    If mAlpha <= 0# Then Exit Property
+    If Abs(mBeta) > 0.0000001 Then Exit Property
+    If mRho <= -0.999999 Or mRho >= 0.999999 Then Exit Property
+    If mNu < 0# Then Exit Property
+
+    IsValid = True
+End Property
+
+'========================
+' Normal SABR Vol
+'========================
+Public Function Vol(ByVal K As Double) As Variant
+
+    Dim v As Double
+
+    If Not IsValid Then
+        Vol = CVErr(xlErrNum)
+        Exit Function
+    End If
+
+    v = NormalSABRVol(mForward, K, mOpYears, mAlpha, mBeta, mRho, mNu)
+
+    If v <= 0# Then
+        Vol = CVErr(xlErrNum)
+    Else
+        Vol = v
+    End If
+End Function
+
+'========================
+' Payer swaption価格
+'========================
+Public Function CallPrice(ByVal K As Double) As Variant
+
+    Dim v As Variant
+
+    If Not IsValid Then
+        CallPrice = CVErr(xlErrNum)
+        Exit Function
+    End If
+
+    v = Vol(K)
+    If IsError(v) Then
+        CallPrice = CVErr(xlErrNum)
+        Exit Function
+    End If
+
+    CallPrice = mAnnuity * SwaptionUnitCallPrice(mForward, mOpYears, K, CDbl(v))
+End Function
+
+'========================
+' アニュイティ除き価格
+' 密度計算用
+'========================
+Private Function UnitCallPrice(ByVal K As Double) As Double
+
+    Dim v As Variant
+    v = Vol(K)
+
+    If IsError(v) Then
+        UnitCallPrice = 0#
+    Else
+        UnitCallPrice = SwaptionUnitCallPrice(mForward, mOpYears, K, CDbl(v))
+    End If
+
+End Function
+
+'========================
+' 密度グリッド作成
+'
+' 例:
+'   KMin = Forward - 0.05
+'   KMax = Forward + 0.05
+'   DK   = 0.0001
+'========================
+Public Function BuildDensityGrid( _
+    Optional ByVal KMin As Double = 1E+99, _
+    Optional ByVal KMax As Double = -1E+99, _
+    Optional ByVal DK As Double = 0.0001 _
+) As Boolean
+
+    On Error GoTo EH
+
+    If Not IsValid Then
+        SetError "不正なSABRパラメータのため密度を作成できません。"
+        BuildDensityGrid = False
+        Exit Function
+    End If
+
+    If DK <= 0# Then
+        SetError "DKが不正です。"
+        BuildDensityGrid = False
+        Exit Function
+    End If
+
+    If KMin = 1E+99 Then KMin = mForward - 0.05
+    If KMax = -1E+99 Then KMax = mForward + 0.05
+
+    If KMin >= KMax Then
+        SetError "KMin >= KMax です。"
+        BuildDensityGrid = False
+        Exit Function
+    End If
+
+    mKMin = KMin
+    mKMax = KMax
+    mDK = DK
+
+    Dim n As Long
+    n = CLng((KMax - KMin) / DK) + 1
+
+    If n < 10 Then
+        SetError "グリッド数が少なすぎます。"
+        BuildDensityGrid = False
+        Exit Function
+    End If
+
+    ReDim mK(0 To n - 1)
+    ReDim mVol(0 To n - 1)
+    ReDim mPrice(0 To n - 1)
+    ReDim mDensity(0 To n - 1)
+    ReDim mCDF(0 To n - 1)
+
+    Dim i As Long
+    Dim v As Variant
+
+    For i = 0 To n - 1
+        mK(i) = KMin + DK * i
+
+        v = Vol(mK(i))
+        If IsError(v) Then
+            SetError "Vol計算エラー。K=" & CStr(mK(i))
+            BuildDensityGrid = False
+            Exit Function
+        End If
+
+        mVol(i) = CDbl(v)
+        mPrice(i) = SwaptionUnitCallPrice(mForward, mOpYears, mK(i), mVol(i))
+    Next i
+
+    ' 2階差分
+    mDensity(0) = 0#
+    mDensity(n - 1) = 0#
+
+    For i = 1 To n - 2
+        mDensity(i) = (mPrice(i + 1) - 2# * mPrice(i) + mPrice(i - 1)) / (DK * DK)
+
+        ' 小さな数値誤差は0扱い
+        If mDensity(i) < 0# And mDensity(i) > -0.00000001 Then
+            mDensity(i) = 0#
+        End If
+    Next i
+
+    ' CDF作成
+    mCDF(0) = 0#
+
+    For i = 1 To n - 1
+        mCDF(i) = mCDF(i - 1) + 0.5 * (mDensity(i - 1) + mDensity(i)) * DK
+    Next i
+
+    ' 正規化
+    Dim totalProb As Double
+    totalProb = mCDF(n - 1)
+
+    If totalProb <= 0# Then
+        SetError "密度の積分が0以下です。"
+        BuildDensityGrid = False
+        Exit Function
+    End If
+
+    For i = 0 To n - 1
+        mDensity(i) = mDensity(i) / totalProb
+        mCDF(i) = mCDF(i) / totalProb
+    Next i
+
+    mGridBuilt = True
+    BuildDensityGrid = True
+    Exit Function
+
+EH:
+    SetError "BuildDensityGridでエラー: " & Err.Description
+    BuildDensityGrid = False
+End Function
+
+'========================
+' 密度 p(K)
+'========================
+Public Function DensityAt(ByVal K As Double) As Variant
+
+    If Not mGridBuilt Then
+        If Not BuildDensityGrid() Then
+            DensityAt = CVErr(xlErrValue)
+            Exit Function
+        End If
+    End If
+
+    If K < mKMin Or K > mKMax Then
+        DensityAt = CVErr(xlErrNA)
+        Exit Function
+    End If
+
+    DensityAt = LinearInterpolate(K, mK, mDensity)
+End Function
+
+'========================
+' P(S_T <= K)
+' つまりストライクKが何％点か
+'========================
+Public Function PercentileOfStrike(ByVal K As Double) As Variant
+
+    If Not mGridBuilt Then
+        If Not BuildDensityGrid() Then
+            PercentileOfStrike = CVErr(xlErrValue)
+            Exit Function
+        End If
+    End If
+
+    If K <= mKMin Then
+        PercentileOfStrike = 0#
+        Exit Function
+    End If
+
+    If K >= mKMax Then
+        PercentileOfStrike = 1#
+        Exit Function
+    End If
+
+    PercentileOfStrike = LinearInterpolate(K, mK, mCDF)
+End Function
+
+'========================
+' p％点のストライク
+' p = 0.95 なら95%点
+'========================
+Public Function StrikeAtPercentile(ByVal p As Double) As Variant
+
+    If p < 0# Or p > 1# Then
+        StrikeAtPercentile = CVErr(xlErrNum)
+        Exit Function
+    End If
+
+    If Not mGridBuilt Then
+        If Not BuildDensityGrid() Then
+            StrikeAtPercentile = CVErr(xlErrValue)
+            Exit Function
+        End If
+    End If
+
+    StrikeAtPercentile = InverseLinearInterpolate(p, mCDF, mK)
+End Function
+
+'========================
+' 密度の健全性チェック
+'========================
+Public Function DensityCheck() As String
+
+    If Not mGridBuilt Then
+        If Not BuildDensityGrid() Then
+            DensityCheck = "NG: " & mLastError
+            Exit Function
+        End If
+    End If
+
+    Dim i As Long
+    Dim minD As Double
+    Dim mean As Double
+    Dim total As Double
+
+    minD = mDensity(LBound(mDensity))
+
+    For i = LBound(mDensity) To UBound(mDensity)
+        If mDensity(i) < minD Then minD = mDensity(i)
+    Next i
+
+    total = mCDF(UBound(mCDF))
+
+    For i = 1 To UBound(mK)
+        mean = mean + 0.5 * _
+            (mK(i - 1) * mDensity(i - 1) + mK(i) * mDensity(i)) * mDK
+    Next i
+
+    DensityCheck = _
+        "TotalProb=" & Format(total, "0.000000") & _
+        ", Mean=" & Format(mean, "0.000000") & _
+        ", Forward=" & Format(mForward, "0.000000") & _
+        ", Mean-Forward=" & Format(mean - mForward, "0.000000") & _
+        ", MinDensity=" & Format(minD, "0.000000")
+
+End Function
+
+'========================
+' 線形補間
+'========================
+Private Function LinearInterpolate( _
+    ByVal x As Double, _
+    ByRef xs() As Double, _
+    ByRef ys() As Double _
+) As Double
+
+    Dim i As Long
+
+    If x <= xs(LBound(xs)) Then
+        LinearInterpolate = ys(LBound(ys))
+        Exit Function
+    End If
+
+    If x >= xs(UBound(xs)) Then
+        LinearInterpolate = ys(UBound(ys))
+        Exit Function
+    End If
+
+    For i = LBound(xs) To UBound(xs) - 1
+        If xs(i) <= x And x <= xs(i + 1) Then
+            LinearInterpolate = ys(i) + _
+                (ys(i + 1) - ys(i)) * (x - xs(i)) / (xs(i + 1) - xs(i))
+            Exit Function
+        End If
+    Next i
+
+End Function
+
+'========================
+' 逆線形補間
+' xsがCDF、ysがK
+'========================
+Private Function InverseLinearInterpolate( _
+    ByVal x As Double, _
+    ByRef xs() As Double, _
+    ByRef ys() As Double _
+) As Double
+
+    Dim i As Long
+
+    If x <= xs(LBound(xs)) Then
+        InverseLinearInterpolate = ys(LBound(ys))
+        Exit Function
+    End If
+
+    If x >= xs(UBound(xs)) Then
+        InverseLinearInterpolate = ys(UBound(ys))
+        Exit Function
+    End If
+
+    For i = LBound(xs) To UBound(xs) - 1
+        If xs(i) <= x And x <= xs(i + 1) Then
+
+            If Abs(xs(i + 1) - xs(i)) < 0.000000000001 Then
+                InverseLinearInterpolate = ys(i)
+            Else
+                InverseLinearInterpolate = ys(i) + _
+                    (ys(i + 1) - ys(i)) * (x - xs(i)) / (xs(i + 1) - xs(i))
+            End If
+
+            Exit Function
+        End If
+    Next i
+
+End Function
