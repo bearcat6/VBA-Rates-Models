@@ -1,0 +1,222 @@
+'========================
+' Normal SABRを9点にフィットして
+' CSABRNormalクラスを返す
+'
+' strikes(): K_i
+' vols():    market normal vol_i
+'========================
+Public Function FitNormalSABR( _
+    ByVal curve As Object, _
+    ByVal OpYears As Double, _
+    ByVal TenorYears As Double, _
+    ByRef strikes() As Double, _
+    ByRef vols() As Double _
+) As CSABRNormal
+
+    Dim sabr As CSABRNormal
+    Set sabr = New CSABRNormal
+
+    On Error GoTo EH
+
+    Dim S0 As Double
+    S0 = curve.ForwardSwapRate(OpYears, TenorYears)
+
+    Dim atmVol As Double
+    atmVol = GuessATMVol(S0, strikes, vols)
+
+    If atmVol <= 0# Then
+        sabr.SetError "ATM Volを推定できません。入力ボラを確認してください。"
+        Set FitNormalSABR = sabr
+        Exit Function
+    End If
+
+    ' 初期値
+    Dim a As Double, r As Double, n As Double
+    a = atmVol
+    r = 0#
+    n = 0.5
+
+    ' パターンサーチの初期刻み
+    Dim stepA As Double, stepR As Double, stepN As Double
+    stepA = atmVol * 0.2
+    stepR = 0.2
+    stepN = 0.2
+
+    Dim bestObj As Double
+    bestObj = SABRObjective(S0, OpYears, strikes, vols, a, r, n)
+
+    Dim iter As Long, improved As Boolean
+    Dim candA As Double, candR As Double, candN As Double
+    Dim obj As Double
+
+    For iter = 1 To 300
+
+        improved = False
+
+        ' alpha +/-
+        candA = a + stepA
+        candR = r
+        candN = n
+        obj = SABRObjective(S0, OpYears, strikes, vols, candA, candR, candN)
+        If obj < bestObj Then
+            a = candA: bestObj = obj: improved = True
+        End If
+
+        candA = a - stepA
+        If candA > 0# Then
+            obj = SABRObjective(S0, OpYears, strikes, vols, candA, r, n)
+            If obj < bestObj Then
+                a = candA: bestObj = obj: improved = True
+            End If
+        End If
+
+        ' rho +/-
+        candR = r + stepR
+        If candR < 0.999 Then
+            obj = SABRObjective(S0, OpYears, strikes, vols, a, candR, n)
+            If obj < bestObj Then
+                r = candR: bestObj = obj: improved = True
+            End If
+        End If
+
+        candR = r - stepR
+        If candR > -0.999 Then
+            obj = SABRObjective(S0, OpYears, strikes, vols, a, candR, n)
+            If obj < bestObj Then
+                r = candR: bestObj = obj: improved = True
+            End If
+        End If
+
+        ' nu +/-
+        candN = n + stepN
+        obj = SABRObjective(S0, OpYears, strikes, vols, a, r, candN)
+        If obj < bestObj Then
+            n = candN: bestObj = obj: improved = True
+        End If
+
+        candN = n - stepN
+        If candN >= 0# Then
+            obj = SABRObjective(S0, OpYears, strikes, vols, a, r, candN)
+            If obj < bestObj Then
+                n = candN: bestObj = obj: improved = True
+            End If
+        End If
+
+        If Not improved Then
+            stepA = stepA * 0.5
+            stepR = stepR * 0.5
+            stepN = stepN * 0.5
+        End If
+
+        If stepA < 0.00000001 And stepR < 0.000001 And stepN < 0.000001 Then
+            Exit For
+        End If
+
+    Next iter
+
+    sabr.Init curve, OpYears, TenorYears, a, 0#, r, n
+
+    If Not sabr.IsValid Then
+        sabr.SetError "SABRパラメータが不正です。"
+    End If
+
+    Set FitNormalSABR = sabr
+    Exit Function
+
+EH:
+    sabr.SetError "FitNormalSABRでエラー: " & Err.Description
+    Set FitNormalSABR = sabr
+End Function
+
+'========================
+' 目的関数
+' ボラ誤差 + 負密度ペナルティは後でクラス側でも確認
+' ここではまず9点へのフィット重視
+'========================
+Private Function SABRObjective( _
+    ByVal S0 As Double, _
+    ByVal T As Double, _
+    ByRef strikes() As Double, _
+    ByRef vols() As Double, _
+    ByVal Alpha As Double, _
+    ByVal Rho As Double, _
+    ByVal Nu As Double _
+) As Double
+
+    On Error GoTo EH
+
+    If Alpha <= 0# Or Nu < 0# Or Rho <= -0.999 Or Rho >= 0.999 Then
+        SABRObjective = 1E+99
+        Exit Function
+    End If
+
+    Dim i As Long
+    Dim vModel As Double
+    Dim diff As Double
+    Dim obj As Double
+    Dim w As Double
+    Dim atmDist As Double
+
+    obj = 0#
+
+    For i = LBound(strikes) To UBound(strikes)
+
+        vModel = NormalSABRVol(S0, strikes(i), T, Alpha, 0#, Rho, Nu)
+
+        If vModel <= 0# Then
+            SABRObjective = 1E+99
+            Exit Function
+        End If
+
+        ' ATM近辺を少し重くする
+        atmDist = Abs(strikes(i) - S0)
+
+        If atmDist < 0.000001 Then
+            w = 3#
+        ElseIf atmDist <= 0.005 Then
+            w = 2#
+        ElseIf atmDist <= 0.01 Then
+            w = 1.5
+        Else
+            w = 1#
+        End If
+
+        diff = vModel - vols(i)
+        obj = obj + w * diff * diff
+
+    Next i
+
+    SABRObjective = obj
+    Exit Function
+
+EH:
+    SABRObjective = 1E+99
+End Function
+
+'========================
+' ATMに最も近い点のボラを初期Alphaに使う
+'========================
+Private Function GuessATMVol( _
+    ByVal S0 As Double, _
+    ByRef strikes() As Double, _
+    ByRef vols() As Double _
+) As Double
+
+    Dim i As Long
+    Dim bestI As Long
+    Dim bestD As Double
+    Dim d As Double
+
+    bestI = LBound(strikes)
+    bestD = Abs(strikes(bestI) - S0)
+
+    For i = LBound(strikes) To UBound(strikes)
+        d = Abs(strikes(i) - S0)
+        If d < bestD Then
+            bestD = d
+            bestI = i
+        End If
+    Next i
+
+    GuessATMVol = vols(bestI)
+End Function
