@@ -1,0 +1,170 @@
+Option Explicit
+
+Private Const PI As Double = 3.14159265358979
+
+'========================
+' 標準正規PDF
+'========================
+Public Function NormPDF(ByVal x As Double) As Double
+    NormPDF = Exp(-0.5 * x * x) / Sqr(2# * PI)
+End Function
+
+'========================
+' 標準正規CDF
+' Excel関数を利用
+'========================
+Public Function NormCDF(ByVal x As Double) As Double
+    NormCDF = WorksheetFunction.Norm_S_Dist(x, True)
+End Function
+
+'========================
+' Bachelier payer swaption価格
+'
+' curve:
+'   ForwardSwapRate(OpYears, TenorYears)
+'   SwapAnnuity(OpYears, TenorYears)
+'
+' volN:
+'   Normal Vol、小数表記
+'========================
+Public Function SwaptionCallPrice( _
+    ByVal curve As Object, _
+    ByVal OpYears As Double, _
+    ByVal TenorYears As Double, _
+    ByVal K As Double, _
+    ByVal Alpha As Double, _
+    Optional ByVal Beta As Double = 0#, _
+    Optional ByVal Rho As Double = 0#, _
+    Optional ByVal Nu As Double = 0# _
+) As Variant
+
+    On Error GoTo EH
+
+    Dim S0 As Double
+    Dim A As Double
+    Dim volN As Double
+    Dim d As Double
+    Dim sqrtT As Double
+
+    If OpYears <= 0# Then
+        SwaptionCallPrice = CVErr(xlErrNum)
+        Exit Function
+    End If
+
+    S0 = curve.ForwardSwapRate(OpYears, TenorYears)
+    A = curve.SwapAnnuity(OpYears, TenorYears)
+
+    If A <= 0# Then
+        SwaptionCallPrice = CVErr(xlErrNum)
+        Exit Function
+    End If
+
+    volN = NormalSABRVol(S0, K, OpYears, Alpha, Beta, Rho, Nu)
+
+    If volN <= 0# Then
+        SwaptionCallPrice = CVErr(xlErrNum)
+        Exit Function
+    End If
+
+    sqrtT = Sqr(OpYears)
+    d = (S0 - K) / (volN * sqrtT)
+
+    SwaptionCallPrice = A * ((S0 - K) * NormCDF(d) + volN * sqrtT * NormPDF(d))
+    Exit Function
+
+EH:
+    SwaptionCallPrice = CVErr(xlErrValue)
+End Function
+
+'========================
+' アニュイティ除きBachelier価格
+' 密度計算ではこちらを使う
+'========================
+Public Function SwaptionUnitCallPrice( _
+    ByVal S0 As Double, _
+    ByVal T As Double, _
+    ByVal K As Double, _
+    ByVal volN As Double _
+) As Double
+
+    Dim d As Double
+    Dim sqrtT As Double
+
+    If T <= 0# Or volN <= 0# Then
+        SwaptionUnitCallPrice = 0#
+        Exit Function
+    End If
+
+    sqrtT = Sqr(T)
+    d = (S0 - K) / (volN * sqrtT)
+
+    SwaptionUnitCallPrice = (S0 - K) * NormCDF(d) + volN * sqrtT * NormPDF(d)
+End Function
+
+'========================
+' Normal SABR Vol
+'
+' 基本は beta = 0
+' dF = alpha dW
+'
+' beta <> 0 は今回は対象外としてエラー的に0を返す
+'========================
+Public Function NormalSABRVol( _
+    ByVal F As Double, _
+    ByVal K As Double, _
+    ByVal T As Double, _
+    ByVal Alpha As Double, _
+    Optional ByVal Beta As Double = 0#, _
+    Optional ByVal Rho As Double = 0#, _
+    Optional ByVal Nu As Double = 0# _
+) As Double
+
+    On Error GoTo EH
+
+    Dim z As Double
+    Dim xz As Double
+    Dim zx As Double
+    Dim adj As Double
+    Dim tmp As Double
+
+    If Alpha <= 0# Then GoTo EH
+    If Nu < 0# Then GoTo EH
+    If Rho <= -0.999999 Or Rho >= 0.999999 Then GoTo EH
+    If T < 0# Then GoTo EH
+
+    ' 今回はNormal SABR前提なので beta=0 固定
+    If Abs(Beta) > 0.0000001 Then GoTo EH
+
+    If Nu = 0# Then
+        NormalSABRVol = Alpha
+        Exit Function
+    End If
+
+    z = (Nu / Alpha) * (F - K)
+
+    If Abs(z) < 0.00000001 Then
+        zx = 1#
+    Else
+        tmp = Sqr(1# - 2# * Rho * z + z * z) + z - Rho
+        If tmp <= 0# Or (1# - Rho) <= 0# Then GoTo EH
+
+        xz = Log(tmp / (1# - Rho))
+
+        If Abs(xz) < 0.000000000001 Then
+            zx = 1#
+        Else
+            zx = z / xz
+        End If
+    End If
+
+    adj = 1# + ((2# - 3# * Rho * Rho) / 24#) * Nu * Nu * T
+
+    NormalSABRVol = Alpha * zx * adj
+
+    If NormalSABRVol <= 0# Then GoTo EH
+
+    Exit Function
+
+EH:
+    NormalSABRVol = 0#
+End Function
