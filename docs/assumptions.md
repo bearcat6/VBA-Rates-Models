@@ -87,7 +87,8 @@
 - ForwardParRate の開始日は SpotDate + Expiry、終了日は開始日 + Tenor とする
 - ForwardParRate は PayReceive に依存しない
 - ForwardParRate は、固定脚PVと変動脚PVが一致する固定金利とする
-- ForwardParRate = (DF(StartDate) - DF(EndDate)) / Annuity
+- ForwardParRate = FloatingLegPV / Annuity
+- FloatingLegPV = Σ (DF(periodStart_i) / DF(periodEnd_i) - 1) × DF(paymentDate_i)
 - Annuity = Σ YearFraction(periodStart_i, periodEnd_i) × DF(paymentDate_i)
 - 固定脚の YearFrac は ACT/365 とする
 - 固定脚の支払日は各期間終了日の PaymentLag 営業日後とする
