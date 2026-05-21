@@ -51,7 +51,7 @@ Private Const ROOT_MAX_ITER As Long = 100
 ' 初期化
 '============================================================
 Public Sub Init( _
-  ByVal in_valuationDate As Date, _
+  ByVal in_ValuationDate As Date, _
   Optional ByVal in_Calendar As clsHolidayCalendar = Nothing, _
   Optional ByVal in_spotLag As Long = 2, _
   Optional ByVal in_PaymentLag As Long = 2, _
@@ -70,7 +70,7 @@ Public Sub Init( _
       "PaymentLag は0以上にしてください。"
   End If
 
-  mValuationDate = DateValue(in_valuationDate)
+  mValuationDate = DateValue(in_ValuationDate)
   Set mCalendar = in_Calendar
 
   mSpotDate = GetWorkday(mValuationDate, in_spotLag, mCalendar)
@@ -171,7 +171,7 @@ End Sub
 ' targetDate < valuationDate ならエラー
 ' targetDate > 最終セグメントEnd + PaymentLag ならエラー
 '============================================================
-Public Function DF(ByVal in_TargetDate As Date) As Double
+Public Function df(ByVal in_TargetDate As Date) As Double
 
   Dim integral As Double
   Dim extrapolationLimitDate As Date
@@ -181,7 +181,7 @@ Public Function DF(ByVal in_TargetDate As Date) As Double
   in_TargetDate = DateValue(in_TargetDate)
 
   If in_TargetDate = mValuationDate Then
-    DF = 1#
+    df = 1#
     Exit Function
   End If
 
@@ -207,7 +207,7 @@ Public Function DF(ByVal in_TargetDate As Date) As Double
 
   integral = IntegralForwardAllowPaymentLag(mValuationDate, in_TargetDate)
 
-  DF = Exp(-integral)
+  df = Exp(-integral)
 
 End Function
 
@@ -232,7 +232,7 @@ Public Function ZeroRateCont(ByVal in_TargetDate As Date) As Double
   End If
 
   yf = YearFracAct365F(mValuationDate, in_TargetDate)
-  dfTarget = DF(in_TargetDate)
+  dfTarget = df(in_TargetDate)
 
   ZeroRateCont = -Log(dfTarget) / yf
 
@@ -246,10 +246,8 @@ End Function
 ' ForwardRate(S,E)
 '   = ( DF(S) / DF(E) - 1 ) / YearFrac(S,E)
 '============================================================
-Public Function ForwardRate( _
-  ByVal in_StartDate As Date, _
-  ByVal in_EndDate As Date _
-) As Double
+Public Function ForwardRate(ByVal in_StartDate As Date, _
+                            ByVal in_EndDate As Date) As Double
 
   Dim dfStart As Double
   Dim dfEnd As Double
@@ -266,11 +264,122 @@ Public Function ForwardRate( _
       "EndDate は StartDate より後の日付にしてください。"
   End If
 
-  dfStart = DF(in_StartDate)
-  dfEnd = DF(in_EndDate)
+  dfStart = df(in_StartDate)
+  dfEnd = df(in_EndDate)
   yf = YearFracAct365F(in_StartDate, in_EndDate)
 
   ForwardRate = (dfStart / dfEnd - 1#) / yf
+
+End Function
+
+
+'============================================================
+' Forward Par Rate
+'
+' Expiry, Tenor を指定して、Forward Starting OIS Swap の
+' Par Rate を返す。
+'
+' 例：
+'   ForwardParRate("6M", "5Y")
+'
+' StartDate = SpotDate + Expiry
+' EndDate   = StartDate + Tenor
+'
+' ParRate =
+'   ( DF(Start) - DF(End) ) / Sum[ yearFrac_i * DF(payDate_i) ]
+'
+' 固定レグは 1Y 間隔を基本とし、端数期間は最終期間として扱う。
+'============================================================
+Public Function ForwardParRate(ByVal in_Expiry As String, _
+                               ByVal in_Tenor As String) As Double
+
+  Dim startDate As Date
+  Dim endDate As Date
+  
+  CheckInitialized
+  
+  startDate = GetBusinessDay( _
+    mSpotDate, _
+    in_Expiry, _
+    mBusinessDayConvention, _
+    mCalendar _
+  )
+  
+  endDate = GetBusinessDay( _
+    startDate, _
+    in_Tenor, _
+    mBusinessDayConvention, _
+    mCalendar _
+  )
+  
+  ForwardParRate = ForwardParRateByDates(startDate, endDate)
+
+End Function
+
+
+'============================================================
+' Forward Par Rate（日付指定版）
+'
+' Swaption や CMS 等で、開始日・終了日を直接指定したい場合用。
+'============================================================
+Public Function ForwardParRateByDates(ByVal in_StartDate As Date, _
+                                      ByVal in_EndDate As Date) As Double
+
+  Dim periodStart As Date
+  Dim periodEnd As Date
+  Dim payDate As Date
+  
+  Dim dfStart As Double
+  Dim dfEnd As Double
+  Dim annuity As Double
+  Dim yf As Double
+  
+  CheckInitialized
+  
+  in_StartDate = DateValue(in_StartDate)
+  in_EndDate = DateValue(in_EndDate)
+  
+  If in_EndDate <= in_StartDate Then
+    Err.Raise vbObjectError + 3026, _
+      "clsOISStepForwardCurve.ForwardParRateByDates", _
+      "EndDate は StartDate より後の日付にしてください。"
+  End If
+  
+  dfStart = df(in_StartDate)
+  dfEnd = df(in_EndDate)
+  
+  annuity = 0#
+  periodStart = in_StartDate
+  
+  Do While periodStart < in_EndDate
+  
+    periodEnd = GetBusinessDay( _
+      periodStart, _
+      "1Y", _
+      mBusinessDayConvention, _
+      mCalendar _
+    )
+    
+    If periodEnd > in_EndDate Then
+      periodEnd = in_EndDate
+    End If
+    
+    payDate = GetWorkday(periodEnd, mPaymentLag, mCalendar)
+    yf = YearFracAct365F(periodStart, periodEnd)
+    
+    annuity = annuity + yf * df(payDate)
+    
+    periodStart = periodEnd
+  
+  Loop
+  
+  If annuity <= 0# Then
+    Err.Raise vbObjectError + 3027, _
+      "clsOISStepForwardCurve.ForwardParRateByDates", _
+      "固定レグのAnnuityが0以下です。"
+  End If
+  
+  ForwardParRateByDates = (dfStart - dfEnd) / annuity
 
 End Function
 
@@ -361,8 +470,8 @@ Public Function GetSegmentTable() As Variant
     arr(i + 1, 3) = mSegEnd(i)
     arr(i + 1, 4) = YearFracAct365F(mSegStart(i), mSegEnd(i))
     arr(i + 1, 5) = mSegFwd(i)
-    arr(i + 1, 6) = DF(mSegStart(i))
-    arr(i + 1, 7) = DF(mSegEnd(i))
+    arr(i + 1, 6) = df(mSegStart(i))
+    arr(i + 1, 7) = df(mSegEnd(i))
   Next i
 
   GetSegmentTable = arr
@@ -373,18 +482,18 @@ End Function
 ' セグメント表をシートに出力
 '============================================================
 Public Sub ExportSegmentsToSheet( _
-  ByVal in_sheetName As String, _
-  ByVal in_startCell As String _
+  ByVal in_SheetName As String, _
+  ByVal in_StartCell As String _
 )
 
   Dim ws As Worksheet
   Dim arr As Variant
 
-  Set ws = ThisWorkbook.Worksheets(in_sheetName)
+  Set ws = ThisWorkbook.Worksheets(in_SheetName)
 
   arr = GetSegmentTable()
 
-  ws.Range(in_startCell).Resize(UBound(arr, 1), UBound(arr, 2)).Value = arr
+  ws.Range(in_StartCell).Resize(UBound(arr, 1), UBound(arr, 2)).Value = arr
 
 End Sub
 
@@ -601,7 +710,7 @@ End Function
 '============================================================
 ' 内部処理：ブートストラップ目的関数
 '============================================================
-Private Function BootstrapObjective(ByVal in_x As Double, _
+Private Function BootstrapObjective(ByVal in_X As Double, _
                                     ByVal in_FixedRate As Double, _
                                     ByVal in_mode As String, _
                                     ByVal in_flatStart As Date, _
@@ -618,14 +727,14 @@ Private Function BootstrapObjective(ByVal in_x As Double, _
 
   Select Case UCase$(in_mode)
     Case "FLAT"
-      AddSegment in_flatStart, in_flatEnd, in_x
+      AddSegment in_flatStart, in_flatEnd, in_X
       maturityDate = in_flatEnd
 
     Case "DELTA"
       AppendDeltaForwardSegments _
         in_maturityMonths, _
         in_prevForward, _
-        in_x
+        in_X
 
       maturityDate = GetBusinessDay( _
         mSpotDate, _
@@ -668,31 +777,31 @@ Private Sub AppendDeltaForwardSegments(ByVal in_maturityMonths As Long, _
 
   Dim currentEnd As Date
   Dim nextEnd As Date
-  Dim k As Long
+  Dim K As Long
   Dim i As Long
-  Dim f As Double
+  Dim F As Double
 
   currentEnd = mSegEnd(mSegCount)
-  k = FindNextGridMonthAfterCurrentEnd(in_maturityMonths)
+  K = FindNextGridMonthAfterCurrentEnd(in_maturityMonths)
   i = 1
 
-  Do While k <= in_maturityMonths
+  Do While K <= in_maturityMonths
     nextEnd = GetBusinessDay( _
       mSpotDate, _
-      CStr(k) & "M", _
+      CStr(K) & "M", _
       mBusinessDayConvention, _
       mCalendar _
     )
 
     If nextEnd > currentEnd Then
-      f = in_prevForward + CDbl(i) * in_deltaForward
-      AddSegment currentEnd, nextEnd, f
+      F = in_prevForward + CDbl(i) * in_deltaForward
+      AddSegment currentEnd, nextEnd, F
 
       currentEnd = nextEnd
       i = i + 1
     End If
 
-    k = k + 3
+    K = K + 3
   Loop
 
 End Sub
@@ -702,27 +811,27 @@ End Sub
 '============================================================
 Private Function FindNextGridMonthAfterCurrentEnd(ByVal in_maturityMonths As Long) As Long
 
-  Dim k As Long
+  Dim K As Long
   Dim d As Date
   Dim currentEnd As Date
 
   currentEnd = mSegEnd(mSegCount)
-  k = 9
+  K = 9
 
-  Do While k <= in_maturityMonths
+  Do While K <= in_maturityMonths
     d = GetBusinessDay( _
       mSpotDate, _
-      CStr(k) & "M", _
+      CStr(K) & "M", _
       mBusinessDayConvention, _
       mCalendar _
     )
 
     If d > currentEnd Then
-      FindNextGridMonthAfterCurrentEnd = k
+      FindNextGridMonthAfterCurrentEnd = K
       Exit Function
     End If
 
-    k = k + 3
+    K = K + 3
   Loop
 
   Err.Raise vbObjectError + 3014, _
@@ -1037,12 +1146,12 @@ End Function
 ' 内部処理：配列からi番目の値を取得
 '============================================================
 Private Function GetVariantItem(ByVal in_v As Variant, _
-                                ByVal in_index As Long) As Variant
+                                ByVal in_Index As Long) As Variant
 
   On Error GoTo TryOneDim
 
   If IsArray(in_v) Then
-    GetVariantItem = in_v(LBound(in_v, 1) + in_index - 1, 1)
+    GetVariantItem = in_v(LBound(in_v, 1) + in_Index - 1, 1)
   Else
     GetVariantItem = in_v
   End If
@@ -1052,7 +1161,7 @@ Private Function GetVariantItem(ByVal in_v As Variant, _
 TryOneDim:
   On Error GoTo SingleValue
 
-  GetVariantItem = in_v(LBound(in_v) + in_index - 1)
+  GetVariantItem = in_v(LBound(in_v) + in_Index - 1)
   Exit Function
 
 SingleValue:
@@ -1156,7 +1265,7 @@ End Sub
 ' メソッド名は clsDiscountCurve_メソッド名 にする。
 '============================================================
 Private Function clsDiscountCurve_DF(ByVal in_TargetDate As Date) As Double
-  clsDiscountCurve_DF = Me.DF(in_TargetDate)
+  clsDiscountCurve_DF = Me.df(in_TargetDate)
 End Function
 
 Private Function clsDiscountCurve_ZeroRateCont(ByVal in_TargetDate As Date) As Double
