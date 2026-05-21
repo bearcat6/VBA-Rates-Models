@@ -81,6 +81,18 @@
 - 6M以降は3か月刻みの瞬間ONフォワード
 - 観測点間に複数の3M区間がある場合は、直前フォワード f_prev に対して、 f_prev + 1Δf, f_prev + 2Δf, ... として、Δfをブートストラップする
 - 8Mなど中途半端なテナーは無視
+- ForwardParRate(in_Expiry, in_Tenor) は、Forward Starting OIS Swap の par rate を返す
+- ForwardParRate の in_Expiry / in_Tenor は tenor文字列で指定する
+  - 例：ForwardParRate("6M", "5Y")
+- ForwardParRate の開始日は SpotDate + Expiry、終了日は開始日 + Tenor とする
+- ForwardParRate は PayReceive に依存しない
+- ForwardParRate は、固定脚PVと変動脚PVが一致する固定金利とする
+- ForwardParRate = (DF(StartDate) - DF(EndDate)) / Annuity
+- Annuity = Σ YearFraction(periodStart_i, periodEnd_i) × DF(paymentDate_i)
+- 固定脚の YearFrac は ACT/365 とする
+- 固定脚の支払日は各期間終了日の PaymentLag 営業日後とする
+- 固定脚は OIS共通前提に合わせ、1年以内は満期一括、1年超は年1回払いとする
+- ForwardParRateByDates(in_StartDate, in_EndDate) は、開始日・終了日を直接指定する日付指定版とする
 
 ## Cap Volatility
 
