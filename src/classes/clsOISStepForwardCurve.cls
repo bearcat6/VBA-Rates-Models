@@ -329,9 +329,8 @@ Public Function ForwardParRateByDates(ByVal in_StartDate As Date, _
   Dim periodEnd As Date
   Dim payDate As Date
   
-  Dim dfStart As Double
-  Dim dfEnd As Double
   Dim annuity As Double
+  Dim floatingLegPV As Double
   Dim yf As Double
   
   CheckInitialized
@@ -345,10 +344,8 @@ Public Function ForwardParRateByDates(ByVal in_StartDate As Date, _
       "EndDate は StartDate より後の日付にしてください。"
   End If
   
-  dfStart = df(in_StartDate)
-  dfEnd = df(in_EndDate)
-  
   annuity = 0#
+  floatingLegPV = 0#
   periodStart = in_StartDate
   
   Do While periodStart < in_EndDate
@@ -369,6 +366,9 @@ Public Function ForwardParRateByDates(ByVal in_StartDate As Date, _
     
     annuity = annuity + yf * df(payDate)
     
+    floatingLegPV = floatingLegPV + _
+      (df(periodStart) / df(periodEnd) - 1#) * df(payDate)
+    
     periodStart = periodEnd
   
   Loop
@@ -379,7 +379,7 @@ Public Function ForwardParRateByDates(ByVal in_StartDate As Date, _
       "固定レグのAnnuityが0以下です。"
   End If
   
-  ForwardParRateByDates = (dfStart - dfEnd) / annuity
+  ForwardParRateByDates = floatingLegPV / annuity
 
 End Function
 
