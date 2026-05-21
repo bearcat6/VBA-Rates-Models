@@ -286,7 +286,13 @@ End Function
 ' EndDate   = StartDate + Tenor
 '
 ' ParRate =
-'   ( DF(Start) - DF(End) ) / Sum[ yearFrac_i * DF(payDate_i) ]
+'   FloatingLegPV / Annuity
+'
+' FloatingLegPV =
+'   Sum[ (DF(periodStart_i) / DF(periodEnd_i) - 1) * DF(payDate_i) ]
+'
+' Annuity =
+'   Sum[ yearFrac_i * DF(payDate_i) ]
 '
 ' 固定レグは 1Y 間隔を基本とし、端数期間は最終期間として扱う。
 '============================================================
