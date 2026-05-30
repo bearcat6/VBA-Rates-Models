@@ -24,6 +24,7 @@ VBA-Rates-Models
 │  │  ├─ clsHolidayCalendar.cls
 │  │  ├─ clsDiscountCurve.cls
 │  │  ├─ clsOISStepForwardCurve.cls
+│  │  ├─ clsOISZeroLinearCurve.cls
 │  │  ├─ clsOISswap.cls
 │  │  ├─ clsCapVolBootstrapper
 │  │  ├─ clsCapVolTermStructure
