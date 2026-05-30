@@ -95,6 +95,28 @@
 - 固定脚は OIS共通前提に合わせ、1年以内は満期一括、1年超は年1回払いとする
 - ForwardParRateByDates(in_StartDate, in_EndDate) は、開始日・終了日を直接指定する日付指定版とする
 
+## OIS Zero Linear Curve
+
+- クラス名：clsOISZeroLinearCurve
+- `DF(in_TargetDate)`, `ZeroRateCont(in_TargetDate)`, `ForwardRate(in_StartDate, in_EndDate)` を返す
+- `clsDiscountCurve` を Implements する
+- 入力レートは連続複利ゼロレートとする
+- OIS quote からのブートストラップは行わない
+- tenor / zero rate 配列を受け取り、各 tenor に対応する満期日をゼロレート点として保持する
+- `"ON"` / `"O/N"` は、評価日翌営業日のゼロレート点として扱う
+- `"1M"`, `"2M"`, `"3M"`, `"6M"`, `"1Y"`, `"2Y"` 等は、SpotDate + Tenor を Business Day Convention で調整した日付として扱う
+- 補間対象は、連続複利ゼロレートとする
+- 補間軸は、評価日から対象日までの ACT/365 年数とする
+- 補間方法は、ゼロレートの直線補間とする
+- DF は `DF(0,T) = Exp(-ZeroRateCont(T) * T)` で計算する
+- ForwardRate は、DF 比から算出する期間フォワードレートとする
+- ForwardRate は、原則として ACT/365 ベースの単利年率とする
+- ForwardRate = `(DF(in_StartDate) / DF(in_EndDate) - 1) / YearFraction(in_StartDate, in_EndDate)`
+- 最初のゼロレート点より手前は、最初のゼロレートを横置きする
+- 最終ゼロレート点より後は、原則として外挿しない
+- ただし、支払日計算への対応として、最終点 + PaymentLag までは最後のゼロレートを横置きする
+- それを超える日付はエラーとする
+
 ## Cap Volatility
 
 - 目的は、Cap取引そのものの評価ではなく、TONA 6M 等の caplet 部分を評価するための caplet normal volatility term structure を構築することである
