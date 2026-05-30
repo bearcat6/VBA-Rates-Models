@@ -206,6 +206,7 @@ GetPointTable() As Variant
 ExportPointsToSheet(in_SheetName, in_StartCell)
 ---
 
+```
 ## 6. 標準モジュール設計
 
 ### 6.1 mdl_BusinessDay
