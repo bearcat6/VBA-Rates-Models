@@ -176,7 +176,34 @@ NPV は PayReceive に応じて符号を反映する。
 PAYER    : FloatingLegPV - FixedLegPV
 RECEIVER : FixedLegPV - FloatingLegPV
 ```
+### 5.3 clsOISZeroLinearCurve
 
+#### 役割
+
+JPY OIS / TONA ベースのゼロレート点を保持し、評価日からの年数に対して連続複利ゼロレートを直線補間するディスカウントカーブ。
+
+`clsOISStepForwardCurve` が瞬間ONフォワードを階段状に保持するのに対し、`clsOISZeroLinearCurve` はゼロレートそのものを補間対象とする。
+
+#### 主な責務
+
+- ValuationDate / SpotDate / PaymentLag / Business Day Convention の保持
+- tenor / zero rate 配列からゼロレート点を構築
+- 連続複利ゼロレートの直線補間
+- DF の計算
+- DF比による期間フォワードレートの計算
+- `clsDiscountCurve` インターフェースの実装
+
+#### 主なメソッド
+
+```text
+Init(in_ValuationDate, Optional in_Calendar, Optional in_spotLag, Optional in_PaymentLag, Optional in_BusinessDayConvention)
+AddPoint(in_TargetDate, in_ZeroRateCont)
+BuildFromZeroRates(in_Tenors, in_ZeroRates)
+DF(in_TargetDate) As Double
+ZeroRateCont(in_TargetDate) As Double
+ForwardRate(in_StartDate, in_EndDate) As Double
+GetPointTable() As Variant
+ExportPointsToSheet(in_SheetName, in_StartCell)
 ---
 
 ## 6. 標準モジュール設計
