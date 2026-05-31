@@ -196,7 +196,7 @@ JPY OIS / TONA ベースのゼロレート点を保持し、評価日からの�
 
 #### 主なメソッド
 
-```md
+```text
 Init(in_ValuationDate, Optional in_Calendar, Optional in_spotLag, Optional in_PaymentLag, Optional in_BusinessDayConvention)
 AddPoint(in_TargetDate, in_ZeroRateCont)
 BuildFromZeroRates(in_Tenors, in_ZeroRates)
