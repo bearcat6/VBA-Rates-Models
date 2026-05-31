@@ -265,6 +265,7 @@ Public Function ZeroRateCont(ByVal in_TargetDate As Date) As Double
   Dim t2 As Double
   Dim z1 As Double
   Dim z2 As Double
+  Dim extrapolationLimitDate As Date
 
   CheckInitialized
 
