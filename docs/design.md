@@ -197,7 +197,6 @@ JPY OIS / TONA ベースのゼロレート点を保持し、評価日からの�
 #### 主なメソッド
 
 ```md
-```text
 Init(in_ValuationDate, Optional in_Calendar, Optional in_spotLag, Optional in_PaymentLag, Optional in_BusinessDayConvention)
 AddPoint(in_TargetDate, in_ZeroRateCont)
 BuildFromZeroRates(in_Tenors, in_ZeroRates)
@@ -206,7 +205,6 @@ ZeroRateCont(in_TargetDate) As Double
 ForwardRate(in_StartDate, in_EndDate) As Double
 GetPointTable() As Variant
 ExportPointsToSheet(in_SheetName, in_StartCell)
----
 
 ```
 ## 6. 標準モジュール設計
