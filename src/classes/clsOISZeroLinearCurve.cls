@@ -289,22 +289,21 @@ Public Function ZeroRateCont(ByVal in_TargetDate As Date) As Double
     Exit Function
   End If
 
-' 最後の点より後は、PaymentLag 許容範囲内に限り最後のゼロレートを横置きする
-If in_TargetDate >= mPointDate(mPointCount) Then
+  ' 最後の点より後は、PaymentLag 許容範囲内に限り最後のゼロレートを横置きする
+  If in_TargetDate >= mPointDate(mPointCount) Then
 
-  extrapolationLimitDate = GetWorkday(mPointDate(mPointCount), mPaymentLag, mCalendar)
+    extrapolationLimitDate = GetWorkday(mPointDate(mPointCount), mPaymentLag, mCalendar)
 
-  If in_TargetDate > extrapolationLimitDate Then
-    Err.Raise vbObjectError + 4017, _
-      "clsOISZeroLinearCurve.ZeroRateCont", _
-      "targetDate がカーブ最終日および支払ラグ許容範囲を超えています。"
+    If in_TargetDate > extrapolationLimitDate Then
+      Err.Raise vbObjectError + 4017, _
+        "clsOISZeroLinearCurve.ZeroRateCont", _
+        "targetDate がカーブ最終日および支払ラグ許容範囲を超えています。"
+    End If
+
+    ZeroRateCont = mPointZeroRate(mPointCount)
+    Exit Function
+
   End If
-
-  ZeroRateCont = mPointZeroRate(mPointCount)
-  Exit Function
-
-End If
-
 
   t = YearFracAct365F(mValuationDate, in_TargetDate)
 
