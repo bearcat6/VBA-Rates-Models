@@ -445,3 +445,156 @@ Hull-White 1F は、JPY OISカーブとスワップション・ボラティリ�
 
 ```text
 dr(t) = { theta(t) - a r(t) } dt + sigma dW(t)
+
+```
+
+実装上は、以下の shifted short-rate representation を利用する。
+
+```text
+r(t) = phi(t) + x(t)
+
+dx(t) = -a x(t) dt + sigma dW(t)
+```
+
+ここで、`phi(t)` は初期ディスカウントカーブと整合するように定まるシフト項であり、`x(t)` は平均回帰する確率ファクターである。
+
+#### 主な責務
+
+- 初期ディスカウントカーブの参照
+- 評価日の保持
+- 平均回帰パラメータ `a` の保持
+- 短期金利ボラティリティ `sigma` の保持
+- Hull-White の `B(t,T)` の計算
+- Hull-White の `A(t,T)` の計算
+- 将来時点の割引債価格 `P(t,T)` の計算
+- shifted short-rate factor `x(t)` の1ステップ更新
+- 初期フォワードレートおよびシフト項の計算
+
+#### 設計方針
+
+`clsHullWhite1F` は、具体的なOISカーブ構築方法には依存しない。
+
+Hull-White 1F は時間軸 `t`, `T` を用いるため、カーブオブジェクトには、評価日からの年数を引数とする以下の time-based interface を要求する。
+
+```vb
+DF_T(T)
+InstantaneousForward(T)
+```
+
+これにより、`clsOISStepForwardCurve`、`clsOISZeroLinearCurve` など、異なるカーブ構築方法を持つクラスを同じHull-Whiteモデルから利用できるようにする。
+
+#### 注意点
+
+`theta(t)` は直接入力パラメータとして保持しない。
+
+初期ディスカウントカーブと整合するように `phi(t)` を扱うことで、現在の市場カーブを再現する設計とする。
+
+---
+
+### 10.2 clsHWCalibrator
+
+#### 役割
+
+`clsHWCalibrator` は、ディスカウントカーブとボラティリティ・サーフェスを入力として、1ファクター Hull-White モデルのパラメータを推定するクラスである。
+
+初期実装では、平均回帰パラメータ `a` は外部から固定値として与え、短期金利ボラティリティ `sigma` を ATM normal swaption volatility にフィットする。
+
+#### 主な責務
+
+- ディスカウントカーブの参照
+- Hull-White 1F キャリブレーション用のボラティリティ・サーフェスの参照
+- キャリブレーション対象となる expiry / tenor quote の保持
+- 固定された `a` に対する `sigma` の推定
+- 市場ボラティリティとモデルボラティリティの誤差計算
+- キャリブレーション結果およびレポート用配列の生成
+
+#### 初期スコープ
+
+初期実装では、厳密な Jamshidian decomposition によるスワップション評価は行わない。
+
+スワップレートの Hull-White factor に対する感応度を用いた簡易的な normal volatility 近似により、`sigma` を推定する。
+
+この実装は、将来金利カーブのモンテカルロ・シミュレーションやストレスカーブ作成に用いる初期パラメータ推定を目的とする。
+
+#### 将来拡張
+
+将来的には、`clsHullWhite1F` または `mdl_HullWhiteMath` に厳密な bond option / swaption pricing を実装し、`clsHWCalibrator` の目的関数から呼び出す設計に拡張する。
+
+また、初期実装では `a` を固定値として扱うが、将来的には `a` と `sigma` の同時推定、または expiry / tenor ごとのフィット状況を確認する診断機能を追加する。
+
+---
+
+### 10.3 clsHWSimulator
+
+#### 役割
+
+`clsHWSimulator` は、ディスカウントカーブと Hull-White 1F のパラメータ `a`, `sigma` を用いて、将来時点の金利カーブをモンテカルロ・シミュレーションするクラスである。
+
+主に、1年後などの将来時点における short rate、zero rate curve、discount factor curve、forward rate curve を生成し、分位点カーブやストレスカーブ作成に利用する。
+
+#### 主な責務
+
+- ディスカウントカーブの参照
+- 平均回帰パラメータ `a` の保持
+- 短期金利ボラティリティ `sigma` の保持
+- シミュレーション期間 horizon の保持
+- タイムステップ `dt` の保持
+- shifted short-rate factor `x(t)` のパス生成
+- short rate path の生成
+- horizon時点の discount factor curve の生成
+- horizon時点の zero rate curve の生成
+- horizon時点の forward rate curve の生成
+- パス別結果および分位点計算用データの生成
+
+#### シミュレーション方法
+
+`x(t)` は Ornstein-Uhlenbeck 過程として、以下の exact discretization により更新する。
+
+```text
+x(t+dt) = x(t) exp(-a dt)
+          + sigma sqrt((1 - exp(-2a dt)) / (2a)) Z
+```
+
+`a` がゼロに近い場合は、以下の極限形を用いる。
+
+```text
+x(t+dt) = x(t) + sigma sqrt(dt) Z
+```
+
+ここで、`Z` は標準正規乱数である。
+
+#### 注意点
+
+初期実装では、将来時点のカーブ生成は、初期カーブを基準に Hull-White の bond sensitivity とシミュレーションされた factor を用いて行う。
+
+厳密な無裁定将来カーブ生成というより、リスク管理上の分位点カーブ・ストレスカーブ作成を目的とした実務的な初期版とする。
+
+---
+
+### 10.4 clsRandomNormal
+
+#### 役割
+
+`clsRandomNormal` は、モンテカルロ・シミュレーションで利用する標準正規乱数を生成するクラスである。
+
+乱数生成ロジックを `clsHWSimulator` などのモデルクラスから分離することで、シミュレーション本体の責務を明確にする。
+
+#### 主な責務
+
+- 標準正規乱数の生成
+- seed指定による再現性の確保
+- Box-Muller法による正規乱数生成
+- Box-Muller法で生成される2つ目の乱数のキャッシュ
+- antithetic variates の利用
+
+#### 設計方針
+
+初期実装では、VBA標準の `Rnd` / `Randomize` を乱数源として利用する。
+
+金融モンテカルロとしての厳密な乱数品質検証は、初期実装の対象外とする。
+
+ただし、seedを指定できる設計とし、同じ入力条件で同じシミュレーション結果を再現できるようにする。
+
+#### 将来拡張
+
+将来的には、より高品質な乱数生成器、準乱数、パス単位の乱数管理、またはシナリオ再現用の乱数保存機能を追加する余地を残す。
