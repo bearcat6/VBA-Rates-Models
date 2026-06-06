@@ -455,47 +455,54 @@ End Function
 Public Function InstantaneousForward(ByVal T As Double, _
                                      Optional ByVal eps As Double = 0.00273972602739726) As Double
 
-
-  Dim tLow As Double
-  Dim tHigh As Double
+  Dim dateLow As Date
+  Dim dateHigh As Date
+  Dim tLowActual As Double
+  Dim tHighActual As Double
   Dim dfLow As Double
   Dim dfHigh As Double
 
   CheckInitialized
 
   If T < 0# Then
-    Err.Raise vbObjectError + 4034, _
-      "clsOISZeroLinearCurve.InstantaneousForward", _
+    Err.Raise vbObjectError + 3034, _
+      "clsOISStepForwardCurve.InstantaneousForward", _
       "T は0以上にしてください。"
   End If
 
   If eps <= 0# Then
-    Err.Raise vbObjectError + 4035, _
-      "clsOISZeroLinearCurve.InstantaneousForward", _
+    Err.Raise vbObjectError + 3035, _
+      "clsOISStepForwardCurve.InstantaneousForward", _
       "eps は正の値にしてください。"
   End If
 
   If T <= eps Then
-    tLow = 0#
-    tHigh = T + eps
+    dateLow = DateFromT(0#)
+    dateHigh = DateFromT(T + eps)
   Else
-    tLow = T - eps
-    tHigh = T + eps
+    dateLow = DateFromT(T - eps)
+    dateHigh = DateFromT(T + eps)
   End If
 
-  dfLow = DF_T(tLow)
-  dfHigh = DF_T(tHigh)
+  If dateHigh <= dateLow Then
+    dateHigh = DateAdd("d", 1, dateLow)
+  End If
+
+  tLowActual = YearFracFromValDate(dateLow)
+  tHighActual = YearFracFromValDate(dateHigh)
+
+  dfLow = Me.df(dateLow)
+  dfHigh = Me.df(dateHigh)
 
   If dfLow <= 0# Or dfHigh <= 0# Then
-    Err.Raise vbObjectError + 4036, _
-      "clsOISZeroLinearCurve.InstantaneousForward", _
+    Err.Raise vbObjectError + 3036, _
+      "clsOISStepForwardCurve.InstantaneousForward", _
       "Discount factor must be positive."
   End If
 
-  InstantaneousForward = -(Log(dfHigh) - Log(dfLow)) / (tHigh - tLow)
+  InstantaneousForward = -(Log(dfHigh) - Log(dfLow)) / (tHighActual - tLowActual)
 
 End Function
-
 '============================================================
 ' ゼロレート点表を返す
 '============================================================
