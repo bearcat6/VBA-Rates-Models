@@ -14,7 +14,7 @@
 | `docs/02_OIS_Swap/Design.md` | OISスワップ評価設計 |
 | `docs/03_SABR/Design.md` | Normal SABR設計 |
 | `docs/04_Hull-White_1F/Design.md` | Hull-White 1F設計 |
-| `docs/05_cms_spread/Design.md` | CMSスプレッド評価設計 |
+| `docs/05_CMS-Spread/Design.md` | CMSスプレッド評価設計 |
 
 ## 設計方針
 
