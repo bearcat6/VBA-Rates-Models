@@ -52,7 +52,8 @@ RECEIVER : FixedLegPV - FloatingLegPV
 
 ## フェーズ5：1ファクター Hull-White モデル
 
-対象モジュール：`04_hull_white_1f`
+対象モジュール：`04_hull_white_1f`  
+設計ドキュメント：`docs/04_Hull-White_1F/Design.md`
 
 - モデル本体のロジックをExcelシート入出力から分離します。
 - 割引カーブは time-based interface 経由で利用します。
