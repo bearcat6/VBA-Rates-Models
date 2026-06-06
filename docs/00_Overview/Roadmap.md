@@ -10,7 +10,8 @@
 
 ## フェーズ2：割引カーブ基盤
 
-対象モジュール：`01_discount_curve`
+対象モジュール：`01_discount_curve`  
+設計ドキュメント：`docs/01_Discount_Curve/Design.md`
 
 - `clsDiscountCurve` をカーブインターフェースとして整理します。
 - `clsOISStepForwardCurve` を安定化します。
