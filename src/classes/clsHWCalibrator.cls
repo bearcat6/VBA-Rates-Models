@@ -35,10 +35,6 @@ Option Explicit
 '
 '       Std[x(T)] = sigma * sqrt((1 - exp(-2aT)) / (2a))
 '
-'   a -> 0 の極限：
-'
-'       Std[x(T)] = sigma * sqrt(T)
-'
 ' Swaption normal vol 近似：
 '   ・Expiry 時点の swap rate を x(T) の一次関数として近似する。
 '   ・Model normal vol は以下で近似する。
@@ -46,15 +42,13 @@ Option Explicit
 '       modelVol = |dS/dx| * Std[x(expiry)] / sqrt(expiry)
 '
 '   ・dS/dx は、expiry時点の forward discount factor に対する
-'     Hull-White bond sensitivity B(T,U) を使って計算する。
+'     Hull-White bond sensitivity B(startT,endT) を使って計算する。
 '
 ' 注意：
 '   ・本クラスは初期キャリブレーション用の簡易・実務的実装。
 '   ・厳密な Jamshidian decomposition による swaption pricing ではない。
-'   ・ただし、sigma が normal vol に与える一次的な影響を捉えるため、
-'     初期パラメータ推定、シミュレーション用のラフなsigma推定には有用。
-'   ・将来的には clsHullWhite1F / modHWMath 側に厳密な bond option / swaption
-'     pricing を実装し、本クラスの objective から呼ぶ設計に拡張する。
+'   ・将来的には clsHullWhite1F / mdl_HullWhiteMath 側に厳密な
+'     bond option / swaption pricing を実装し、本クラスから呼ぶ。
 '
 ' 依存：
 '   ・clsVolSurface
@@ -81,16 +75,6 @@ Private Const EPS_TIME As Double = 0.0000000001
 
 '============================================================
 ' 初期化
-'
-' in_Curve:
-'   DF_T(T) を持つ curve object
-'
-' in_VolSurface:
-'   NormalVol(expiry, tenor) を持つ clsVolSurface
-'
-' in_PaymentFrequencyYears:
-'   underlying swap の固定レグ支払間隔。
-'   初期値は 1.0 年。
 '============================================================
 Public Sub Init( _
   ByVal in_Curve As Object, _
@@ -99,26 +83,22 @@ Public Sub Init( _
 )
 
   If in_Curve Is Nothing Then
-    Err.Raise vbObjectError + 7001, _
-      "clsHWCalibrator.Init", _
+    Err.Raise vbObjectError + 7001, "clsHWCalibrator.Init", _
       "Curve object is Nothing."
   End If
 
   If in_VolSurface Is Nothing Then
-    Err.Raise vbObjectError + 7002, _
-      "clsHWCalibrator.Init", _
+    Err.Raise vbObjectError + 7002, "clsHWCalibrator.Init", _
       "Vol surface is Nothing."
   End If
 
   If Not in_VolSurface.IsInitialized Then
-    Err.Raise vbObjectError + 7003, _
-      "clsHWCalibrator.Init", _
+    Err.Raise vbObjectError + 7003, "clsHWCalibrator.Init", _
       "Vol surface is not initialized."
   End If
 
   If in_PaymentFrequencyYears <= 0# Then
-    Err.Raise vbObjectError + 7004, _
-      "clsHWCalibrator.Init", _
+    Err.Raise vbObjectError + 7004, "clsHWCalibrator.Init", _
       "Payment frequency must be positive."
   End If
 
@@ -127,92 +107,56 @@ Public Sub Init( _
   mPaymentFrequencyYears = in_PaymentFrequencyYears
 
   ClearCalibrationQuotes
-
   mHasCalibrationResult = False
   mIsInitialized = True
 
 End Sub
 
-'============================================================
-' 初期化済み判定
-'============================================================
 Public Property Get IsInitialized() As Boolean
   IsInitialized = mIsInitialized
 End Property
 
-'============================================================
-' Quote数
-'============================================================
 Public Property Get QuoteCount() As Long
   QuoteCount = mQuoteCount
 End Property
 
-'============================================================
-' 固定レグ支払間隔
-'============================================================
 Public Property Get PaymentFrequencyYears() As Double
   PaymentFrequencyYears = mPaymentFrequencyYears
 End Property
 
-'============================================================
-' 最後に推定した a
-'============================================================
 Public Property Get LastA() As Double
   If Not mHasCalibrationResult Then
-    Err.Raise vbObjectError + 7011, _
-      "clsHWCalibrator.LastA", _
+    Err.Raise vbObjectError + 7011, "clsHWCalibrator.LastA", _
       "Calibration result is not available."
   End If
-
   LastA = mLastA
 End Property
 
-'============================================================
-' 最後に推定した sigma
-'============================================================
 Public Property Get LastSigma() As Double
   If Not mHasCalibrationResult Then
-    Err.Raise vbObjectError + 7012, _
-      "clsHWCalibrator.LastSigma", _
+    Err.Raise vbObjectError + 7012, "clsHWCalibrator.LastSigma", _
       "Calibration result is not available."
   End If
-
   LastSigma = mLastSigma
 End Property
 
-'============================================================
-' 最後の目的関数値
-'============================================================
 Public Property Get LastObjective() As Double
   If Not mHasCalibrationResult Then
-    Err.Raise vbObjectError + 7013, _
-      "clsHWCalibrator.LastObjective", _
+    Err.Raise vbObjectError + 7013, "clsHWCalibrator.LastObjective", _
       "Calibration result is not available."
   End If
-
   LastObjective = mLastObjective
 End Property
 
 '============================================================
-' Calibration quote をクリア
+' Calibration quotes
 '============================================================
 Public Sub ClearCalibrationQuotes()
-
   mQuoteCount = 0
   Erase mQuoteExpiry
   Erase mQuoteTenor
-
 End Sub
 
-'============================================================
-' Calibration quote を1点追加
-'
-' in_ExpiryYears:
-'   swaption expiry in years
-'
-' in_TenorYears:
-'   underlying swap tenor in years
-'============================================================
 Public Sub AddCalibrationQuote( _
   ByVal in_ExpiryYears As Double, _
   ByVal in_TenorYears As Double _
@@ -221,19 +165,16 @@ Public Sub AddCalibrationQuote( _
   CheckInitialized
 
   If in_ExpiryYears <= 0# Then
-    Err.Raise vbObjectError + 7021, _
-      "clsHWCalibrator.AddCalibrationQuote", _
+    Err.Raise vbObjectError + 7021, "clsHWCalibrator.AddCalibrationQuote", _
       "Expiry must be positive."
   End If
 
   If in_TenorYears <= 0# Then
-    Err.Raise vbObjectError + 7022, _
-      "clsHWCalibrator.AddCalibrationQuote", _
+    Err.Raise vbObjectError + 7022, "clsHWCalibrator.AddCalibrationQuote", _
       "Tenor must be positive."
   End If
 
   mQuoteCount = mQuoteCount + 1
-
   ReDim Preserve mQuoteExpiry(1 To mQuoteCount)
   ReDim Preserve mQuoteTenor(1 To mQuoteCount)
 
@@ -242,9 +183,6 @@ Public Sub AddCalibrationQuote( _
 
 End Sub
 
-'============================================================
-' 配列から Calibration quote を作成
-'============================================================
 Public Sub BuildCalibrationQuotes( _
   ByVal in_ExpiryYears As Variant, _
   ByVal in_TenorYears As Variant _
@@ -260,30 +198,21 @@ Public Sub BuildCalibrationQuotes( _
   nTenor = GetVariantItemCount(in_TenorYears)
 
   If nExp <> nTenor Then
-    Err.Raise vbObjectError + 7023, _
-      "clsHWCalibrator.BuildCalibrationQuotes", _
+    Err.Raise vbObjectError + 7023, "clsHWCalibrator.BuildCalibrationQuotes", _
       "Expiry array and tenor array must have the same length."
   End If
 
   ClearCalibrationQuotes
 
   For i = 1 To nExp
-    AddCalibrationQuote _
-      CDbl(GetVariantItem(in_ExpiryYears, i)), _
-      CDbl(GetVariantItem(in_TenorYears, i))
+    AddCalibrationQuote CDbl(GetVariantItem(in_ExpiryYears, i)), _
+                        CDbl(GetVariantItem(in_TenorYears, i))
   Next i
 
 End Sub
 
 '============================================================
 ' 固定 a に対して sigma をキャリブレーション
-'
-' 探索方法：
-'   ・golden section search
-'   ・目的関数は normal vol error の二乗和
-'
-' 戻り値：
-'   calibrated sigma
 '============================================================
 Public Function CalibrateSigmaFixedA( _
   ByVal in_a As Double, _
@@ -307,51 +236,41 @@ Public Function CalibrateSigmaFixedA( _
   CheckReadyForCalibration
 
   If in_a < 0# Then
-    Err.Raise vbObjectError + 7031, _
-      "clsHWCalibrator.CalibrateSigmaFixedA", _
+    Err.Raise vbObjectError + 7031, "clsHWCalibrator.CalibrateSigmaFixedA", _
       "Mean reversion a must be non-negative."
   End If
 
   If in_SigmaLower < 0# Then
-    Err.Raise vbObjectError + 7032, _
-      "clsHWCalibrator.CalibrateSigmaFixedA", _
+    Err.Raise vbObjectError + 7032, "clsHWCalibrator.CalibrateSigmaFixedA", _
       "Sigma lower bound must be non-negative."
   End If
 
   If in_SigmaUpper <= in_SigmaLower Then
-    Err.Raise vbObjectError + 7033, _
-      "clsHWCalibrator.CalibrateSigmaFixedA", _
+    Err.Raise vbObjectError + 7033, "clsHWCalibrator.CalibrateSigmaFixedA", _
       "Sigma upper bound must be greater than lower bound."
   End If
 
   If in_Tolerance <= 0# Then
-    Err.Raise vbObjectError + 7034, _
-      "clsHWCalibrator.CalibrateSigmaFixedA", _
+    Err.Raise vbObjectError + 7034, "clsHWCalibrator.CalibrateSigmaFixedA", _
       "Tolerance must be positive."
   End If
 
   If in_MaxIterations <= 0 Then
-    Err.Raise vbObjectError + 7035, _
-      "clsHWCalibrator.CalibrateSigmaFixedA", _
+    Err.Raise vbObjectError + 7035, "clsHWCalibrator.CalibrateSigmaFixedA", _
       "MaxIterations must be positive."
   End If
 
   lower = in_SigmaLower
   upper = in_SigmaUpper
-
   gr = (Sqr(5#) - 1#) / 2#
 
   x1 = upper - gr * (upper - lower)
   x2 = lower + gr * (upper - lower)
-
   f1 = ObjectiveSigmaFixedA(x1, in_a)
   f2 = ObjectiveSigmaFixedA(x2, in_a)
 
   For i = 1 To in_MaxIterations
-
-    If Abs(upper - lower) <= in_Tolerance Then
-      Exit For
-    End If
+    If Abs(upper - lower) <= in_Tolerance Then Exit For
 
     If f1 > f2 Then
       lower = x1
@@ -366,7 +285,6 @@ Public Function CalibrateSigmaFixedA( _
       x1 = upper - gr * (upper - lower)
       f1 = ObjectiveSigmaFixedA(x1, in_a)
     End If
-
   Next i
 
   bestSigma = 0.5 * (lower + upper)
@@ -381,25 +299,18 @@ Public Function CalibrateSigmaFixedA( _
 
 End Function
 
-'============================================================
-' 指定 a, sigma に対する目的関数値を返す
-'============================================================
 Public Function ObjectiveValue( _
   ByVal in_a As Double, _
   ByVal in_sigma As Double _
 ) As Double
 
   CheckReadyForCalibration
-
   ObjectiveValue = ObjectiveSigmaFixedA(in_sigma, in_a)
 
 End Function
 
 '============================================================
 ' Hull-White 近似 normal swaption vol
-'
-' 戻り値：
-'   annualized normal vol
 '============================================================
 Public Function ModelNormalVol( _
   ByVal in_a As Double, _
@@ -414,26 +325,22 @@ Public Function ModelNormalVol( _
   CheckInitialized
 
   If in_a < 0# Then
-    Err.Raise vbObjectError + 7041, _
-      "clsHWCalibrator.ModelNormalVol", _
+    Err.Raise vbObjectError + 7041, "clsHWCalibrator.ModelNormalVol", _
       "Mean reversion a must be non-negative."
   End If
 
   If in_sigma < 0# Then
-    Err.Raise vbObjectError + 7042, _
-      "clsHWCalibrator.ModelNormalVol", _
+    Err.Raise vbObjectError + 7042, "clsHWCalibrator.ModelNormalVol", _
       "Sigma must be non-negative."
   End If
 
   If in_ExpiryYears <= 0# Then
-    Err.Raise vbObjectError + 7043, _
-      "clsHWCalibrator.ModelNormalVol", _
+    Err.Raise vbObjectError + 7043, "clsHWCalibrator.ModelNormalVol", _
       "Expiry must be positive."
   End If
 
   If in_TenorYears <= 0# Then
-    Err.Raise vbObjectError + 7044, _
-      "clsHWCalibrator.ModelNormalVol", _
+    Err.Raise vbObjectError + 7044, "clsHWCalibrator.ModelNormalVol", _
       "Tenor must be positive."
   End If
 
@@ -445,10 +352,7 @@ Public Function ModelNormalVol( _
 End Function
 
 '============================================================
-' Forward swap rate を返す
-'
-' expiry時点スタート、expiry + tenor 満期の forward swap rate。
-' 固定レグは mPaymentFrequencyYears 間隔。
+' Forward swap rate
 '============================================================
 Public Function ForwardSwapRate( _
   ByVal in_ExpiryYears As Double, _
@@ -467,14 +371,12 @@ Public Function ForwardSwapRate( _
   CheckInitialized
 
   If in_ExpiryYears < 0# Then
-    Err.Raise vbObjectError + 7051, _
-      "clsHWCalibrator.ForwardSwapRate", _
+    Err.Raise vbObjectError + 7051, "clsHWCalibrator.ForwardSwapRate", _
       "Expiry must be non-negative."
   End If
 
   If in_TenorYears <= 0# Then
-    Err.Raise vbObjectError + 7052, _
-      "clsHWCalibrator.ForwardSwapRate", _
+    Err.Raise vbObjectError + 7052, "clsHWCalibrator.ForwardSwapRate", _
       "Tenor must be positive."
   End If
 
@@ -484,34 +386,22 @@ Public Function ForwardSwapRate( _
   BuildPaymentSchedule startT, endT, payTimes, accruals, n
 
   annuity = 0#
-
   For i = 1 To n
     annuity = annuity + accruals(i) * ForwardDF(startT, payTimes(i))
   Next i
 
   If annuity <= 0# Then
-    Err.Raise vbObjectError + 7053, _
-      "clsHWCalibrator.ForwardSwapRate", _
+    Err.Raise vbObjectError + 7053, "clsHWCalibrator.ForwardSwapRate", _
       "Swap annuity must be positive."
   End If
 
   numerator = 1# - ForwardDF(startT, endT)
-
   ForwardSwapRate = numerator / annuity
 
 End Function
 
 '============================================================
-' Calibration report を返す
-'
-' 列：
-'   1 Quote No
-'   2 Expiry
-'   3 Tenor
-'   4 Market Normal Vol
-'   5 Model Normal Vol
-'   6 Error
-'   7 Squared Error
+' Calibration report
 '============================================================
 Public Function GetCalibrationReport() As Variant
 
@@ -524,8 +414,7 @@ Public Function GetCalibrationReport() As Variant
   CheckReadyForCalibration
 
   If Not mHasCalibrationResult Then
-    Err.Raise vbObjectError + 7061, _
-      "clsHWCalibrator.GetCalibrationReport", _
+    Err.Raise vbObjectError + 7061, "clsHWCalibrator.GetCalibrationReport", _
       "Calibration result is not available."
   End If
 
@@ -557,9 +446,6 @@ Public Function GetCalibrationReport() As Variant
 
 End Function
 
-'============================================================
-' Summary
-'============================================================
 Public Function Summary() As String
 
   CheckInitialized
@@ -594,13 +480,11 @@ Private Function ObjectiveSigmaFixedA( _
   Dim total As Double
 
   If in_sigma < 0# Then
-    Err.Raise vbObjectError + 7101, _
-      "clsHWCalibrator.ObjectiveSigmaFixedA", _
+    Err.Raise vbObjectError + 7101, "clsHWCalibrator.ObjectiveSigmaFixedA", _
       "Sigma must be non-negative."
   End If
 
   total = 0#
-
   For i = 1 To mQuoteCount
     marketVol = mVolSurface.NormalVol(mQuoteExpiry(i), mQuoteTenor(i))
     modelVol = ModelNormalVol(in_a, in_sigma, mQuoteExpiry(i), mQuoteTenor(i))
@@ -617,12 +501,12 @@ End Function
 '
 ' expiry時点での forward discount factor を基準に計算する。
 '
-' P_T(U) = P(0,U) / P(0,T)
-' dP_T(U)/dx = -B(T,U) * P_T(U)
+' P_StartT(U) = P(0,U) / P(0,StartT)
+' dP_StartT(U)/dx = -B(StartT,U) * P_StartT(U)
 '
 ' S = N / A
-' N = 1 - P_T(end)
-' A = sum_i accrual_i * P_T(pay_i)
+' N = 1 - P_StartT(endT)
+' A = sum_i accrual_i * P_StartT(pay_i)
 '
 ' dS/dx = (dN * A - N * dA) / A^2
 '============================================================
@@ -672,8 +556,7 @@ Private Function SwapRateSensitivityToX( _
   Next i
 
   If annuity <= 0# Then
-    Err.Raise vbObjectError + 7111, _
-      "clsHWCalibrator.SwapRateSensitivityToX", _
+    Err.Raise vbObjectError + 7111, "clsHWCalibrator.SwapRateSensitivityToX", _
       "Swap annuity must be positive."
   End If
 
@@ -693,8 +576,7 @@ Private Function StdDevX( _
   Dim v As Double
 
   If in_T <= 0# Then
-    Err.Raise vbObjectError + 7121, _
-      "clsHWCalibrator.StdDevX", _
+    Err.Raise vbObjectError + 7121, "clsHWCalibrator.StdDevX", _
       "T must be positive."
   End If
 
@@ -705,8 +587,7 @@ Private Function StdDevX( _
   End If
 
   If v < 0# Then
-    Err.Raise vbObjectError + 7122, _
-      "clsHWCalibrator.StdDevX", _
+    Err.Raise vbObjectError + 7122, "clsHWCalibrator.StdDevX", _
       "Variance is negative."
   End If
 
@@ -715,26 +596,30 @@ Private Function StdDevX( _
 End Function
 
 '============================================================
-' 内部処理：Hull-White B(t,T)
+' 内部処理：Hull-White B(startT,endT)
 '
-' B(t,T) = (1 - exp(-a(T-t))) / a
-' a -> 0 の極限は T - t
+' B(startT,endT) = (1 - exp(-a(endT-startT))) / a
+' a -> 0 の極限は endT - startT
 '============================================================
 Private Function HW_B( _
   ByVal in_a As Double, _
-  ByVal in_t As Double, _
-  ByVal in_T As Double _
+  ByVal in_StartT As Double, _
+  ByVal in_EndT As Double _
 ) As Double
 
   Dim dt As Double
 
-  If in_T < in_t Then
-    Err.Raise vbObjectError + 7131, _
-      "clsHWCalibrator.HW_B", _
-      "T must be greater than or equal to t."
+  If in_StartT < 0# Then
+    Err.Raise vbObjectError + 7131, "clsHWCalibrator.HW_B", _
+      "StartT must be non-negative."
   End If
 
-  dt = in_T - in_t
+  If in_EndT < in_StartT Then
+    Err.Raise vbObjectError + 7132, "clsHWCalibrator.HW_B", _
+      "EndT must be greater than or equal to StartT."
+  End If
+
+  dt = in_EndT - in_StartT
 
   If Abs(dt) < EPS_TIME Then
     HW_B = 0#
@@ -758,8 +643,7 @@ Private Function ForwardDF( _
   Dim df2 As Double
 
   If in_T2 < in_T1 Then
-    Err.Raise vbObjectError + 7141, _
-      "clsHWCalibrator.ForwardDF", _
+    Err.Raise vbObjectError + 7141, "clsHWCalibrator.ForwardDF", _
       "T2 must be greater than or equal to T1."
   End If
 
@@ -767,8 +651,7 @@ Private Function ForwardDF( _
   df2 = CurveDF(in_T2)
 
   If df1 <= 0# Or df2 <= 0# Then
-    Err.Raise vbObjectError + 7142, _
-      "clsHWCalibrator.ForwardDF", _
+    Err.Raise vbObjectError + 7142, "clsHWCalibrator.ForwardDF", _
       "Discount factors must be positive."
   End If
 
@@ -782,16 +665,14 @@ End Function
 Private Function CurveDF(ByVal in_T As Double) As Double
 
   If in_T < 0# Then
-    Err.Raise vbObjectError + 7151, _
-      "clsHWCalibrator.CurveDF", _
+    Err.Raise vbObjectError + 7151, "clsHWCalibrator.CurveDF", _
       "T must be non-negative."
   End If
 
   CurveDF = CDbl(mCurve.DF_T(in_T))
 
   If CurveDF <= 0# Then
-    Err.Raise vbObjectError + 7152, _
-      "clsHWCalibrator.CurveDF", _
+    Err.Raise vbObjectError + 7152, "clsHWCalibrator.CurveDF", _
       "Curve returned non-positive DF."
   End If
 
@@ -799,9 +680,6 @@ End Function
 
 '============================================================
 ' 内部処理：固定レグ支払スケジュールを作成
-'
-' startT から endT まで、mPaymentFrequencyYears 間隔。
-' 最終期間はスタブを許容する。
 '============================================================
 Private Sub BuildPaymentSchedule( _
   ByVal in_StartT As Double, _
@@ -817,8 +695,7 @@ Private Sub BuildPaymentSchedule( _
   Dim payT As Double
 
   If in_EndT <= in_StartT Then
-    Err.Raise vbObjectError + 7161, _
-      "clsHWCalibrator.BuildPaymentSchedule", _
+    Err.Raise vbObjectError + 7161, "clsHWCalibrator.BuildPaymentSchedule", _
       "EndT must be greater than StartT."
   End If
 
@@ -830,9 +707,7 @@ Private Sub BuildPaymentSchedule( _
     out_Count = nFull
   End If
 
-  If out_Count <= 0 Then
-    out_Count = 1
-  End If
+  If out_Count <= 0 Then out_Count = 1
 
   ReDim out_PayTimes(1 To out_Count)
   ReDim out_Accruals(1 To out_Count)
@@ -847,45 +722,30 @@ Private Sub BuildPaymentSchedule( _
     End If
 
     If payT <= prevT Then
-      Err.Raise vbObjectError + 7162, _
-        "clsHWCalibrator.BuildPaymentSchedule", _
+      Err.Raise vbObjectError + 7162, "clsHWCalibrator.BuildPaymentSchedule", _
         "Invalid payment schedule."
     End If
 
     out_PayTimes(i) = payT
     out_Accruals(i) = payT - prevT
-
     prevT = payT
   Next i
 
 End Sub
 
-'============================================================
-' 内部処理：キャリブレーション可能状態チェック
-'============================================================
 Private Sub CheckReadyForCalibration()
-
   CheckInitialized
-
   If mQuoteCount <= 0 Then
-    Err.Raise vbObjectError + 7171, _
-      "clsHWCalibrator", _
+    Err.Raise vbObjectError + 7171, "clsHWCalibrator", _
       "No calibration quotes. Add quotes first."
   End If
-
 End Sub
 
-'============================================================
-' 内部処理：初期化チェック
-'============================================================
 Private Sub CheckInitialized()
-
   If Not mIsInitialized Then
-    Err.Raise vbObjectError + 7181, _
-      "clsHWCalibrator", _
+    Err.Raise vbObjectError + 7181, "clsHWCalibrator", _
       "clsHWCalibrator is not initialized. Call Init first."
   End If
-
 End Sub
 
 '============================================================
@@ -909,13 +769,9 @@ TryTwoDim:
   If IsArray(in_v) Then
     If UBound(in_v, 1) - LBound(in_v, 1) + 1 >= _
        UBound(in_v, 2) - LBound(in_v, 2) + 1 Then
-
       GetVariantItemCount = UBound(in_v, 1) - LBound(in_v, 1) + 1
-
     Else
-
       GetVariantItemCount = UBound(in_v, 2) - LBound(in_v, 2) + 1
-
     End If
   Else
     GetVariantItemCount = 1
