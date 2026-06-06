@@ -1,24 +1,24 @@
 # Design
 
-This document is retained as a top-level pointer for compatibility with older links.
+このドキュメントは、旧リンクとの互換性を残すためのトップページです。
 
-The repository design has moved to a purpose-based modular structure.
+現在の設計ドキュメントは、目的別モジュール構成に移行しています。
 
-## Current Design Documents
+## 現在の設計ドキュメント
 
-| Document | Purpose |
+| ドキュメント | 内容 |
 |---|---|
-| `docs/00_overview/Module_Map.md` | Overall module map and migration map |
-| `docs/00_overview/Roadmap.md` | Development and migration roadmap |
-| `docs/01_discount_curve/Design.md` | Discount curve design |
-| `docs/02_ois_swap/Design.md` | OIS swap valuation design |
-| `docs/03_sabr/Design.md` | Normal SABR design |
-| `docs/04_hull_white_1f/Design.md` | Hull-White 1F design |
-| `docs/05_cms_spread/Design.md` | CMS spread valuation design |
+| `docs/00_Overview/Module_Map.md` | 全体のモジュール構成と移動方針 |
+| `docs/00_Overview/Roadmap.md` | 開発順序と移行ロードマップ |
+| `docs/01_discount_curve/Design.md` | 割引カーブ設計 |
+| `docs/02_ois_swap/Design.md` | OISスワップ評価設計 |
+| `docs/03_sabr/Design.md` | Normal SABR設計 |
+| `docs/04_hull_white_1f/Design.md` | Hull-White 1F設計 |
+| `docs/05_cms_spread/Design.md` | CMSスプレッド評価設計 |
 
-## Design Direction
+## 設計方針
 
-The repository is organized by analytical purpose:
+リポジトリは、以下の目的別モジュールで管理します。
 
 ```text
 common
@@ -29,9 +29,9 @@ common
 05_cms_spread
 ```
 
-The old flat structure under `src/classes` and `src/modules` is being migrated toward the purpose-based structure described in `docs/00_overview/Module_Map.md`.
+従来の `src/classes` と `src/modules` に横並びで置く構成から、`docs/00_Overview/Module_Map.md` に記載した目的別構成へ移行します。
 
-## Dependency Direction
+## 依存関係の方向
 
 ```text
 common
@@ -49,4 +49,6 @@ common + 01_discount_curve + 03_sabr
 05_cms_spread
 ```
 
-Avoid reverse dependencies and avoid mixing product valuation logic into curve construction classes.
+逆方向の依存は避けます。
+
+また、割引カーブ構築クラスに商品評価ロジックを過度に混ぜない方針とします。
