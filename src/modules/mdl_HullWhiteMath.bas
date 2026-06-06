@@ -34,46 +34,47 @@ Private Const HW_ERR_BASE As Long = 7000
 ' Validation helpers
 ' =============================================================================
 
-Public Sub HW_ValidateMeanReversion(ByVal a As Double, _
-                                    Optional ByVal sourceName As String = "mdl_HullWhiteMath")
+Public Sub HW_ValidateMeanReversion(ByVal in_a As Double, _
+                                    Optional ByVal in_SourceName As String = "mdl_HullWhiteMath")
 
-    If a < 0# Then
-        Err.Raise vbObjectError + HW_ERR_BASE + 1, sourceName, _
+    If in_a < 0# Then
+        Err.Raise vbObjectError + HW_ERR_BASE + 1, in_SourceName, _
                   "Mean reversion a must be non-negative."
     End If
 
 End Sub
 
-Public Sub HW_ValidateSigma(ByVal sigma As Double, _
-                            Optional ByVal sourceName As String = "mdl_HullWhiteMath")
+Public Sub HW_ValidateSigma(ByVal in_Sigma As Double, _
+                            Optional ByVal in_SourceName As String = "mdl_HullWhiteMath")
 
-    If sigma < 0# Then
-        Err.Raise vbObjectError + HW_ERR_BASE + 2, sourceName, _
+    If in_Sigma < 0# Then
+        Err.Raise vbObjectError + HW_ERR_BASE + 2, in_SourceName, _
                   "Sigma must be non-negative."
     End If
 
 End Sub
 
-Public Sub HW_ValidateTime(ByVal T As Double, _
-                           Optional ByVal sourceName As String = "mdl_HullWhiteMath")
+Public Sub HW_ValidateTime(ByVal in_Time As Double, _
+                           Optional ByVal in_SourceName As String = "mdl_HullWhiteMath")
 
-    If T < 0# Then
-        Err.Raise vbObjectError + HW_ERR_BASE + 3, sourceName, _
+    If in_Time < 0# Then
+        Err.Raise vbObjectError + HW_ERR_BASE + 3, in_SourceName, _
                   "Time must be non-negative."
     End If
 
 End Sub
 
-Public Sub HW_ValidateTimeOrder(ByVal t As Double, ByVal T As Double, _
-                                Optional ByVal sourceName As String = "mdl_HullWhiteMath")
+Public Sub HW_ValidateTimeOrder(ByVal in_StartTime As Double, _
+                                ByVal in_EndTime As Double, _
+                                Optional ByVal in_SourceName As String = "mdl_HullWhiteMath")
 
-    If t < 0# Or T < 0# Then
-        Err.Raise vbObjectError + HW_ERR_BASE + 4, sourceName, _
+    If in_StartTime < 0# Or in_EndTime < 0# Then
+        Err.Raise vbObjectError + HW_ERR_BASE + 4, in_SourceName, _
                   "Times must be non-negative."
     End If
 
-    If T < t Then
-        Err.Raise vbObjectError + HW_ERR_BASE + 5, sourceName, _
+    If in_EndTime < in_StartTime Then
+        Err.Raise vbObjectError + HW_ERR_BASE + 5, in_SourceName, _
                   "T must be greater than or equal to t."
     End If
 
@@ -89,21 +90,21 @@ End Sub
 '
 ' =============================================================================
 
-Public Function HW_B(ByVal a As Double, _
-                     ByVal t As Double, _
-                     ByVal T As Double) As Double
+Public Function HW_B(ByVal in_a As Double, _
+                     ByVal in_StartTime As Double, _
+                     ByVal in_EndTime As Double) As Double
 
     Dim tau As Double
 
-    Call HW_ValidateMeanReversion(a, "mdl_HullWhiteMath.HW_B")
-    Call HW_ValidateTimeOrder(t, T, "mdl_HullWhiteMath.HW_B")
+    Call HW_ValidateMeanReversion(in_a, "mdl_HullWhiteMath.HW_B")
+    Call HW_ValidateTimeOrder(in_StartTime, in_EndTime, "mdl_HullWhiteMath.HW_B")
 
-    tau = T - t
+    tau = in_EndTime - in_StartTime
 
-    If Abs(a) < HW_EPS Then
+    If Abs(in_a) < HW_EPS Then
         HW_B = tau
     Else
-        HW_B = (1# - Exp(-a * tau)) / a
+        HW_B = (1# - Exp(-in_a * tau)) / in_a
     End If
 
 End Function
@@ -119,72 +120,72 @@ End Function
 '
 ' =============================================================================
 
-Public Function HW_XNextMean(ByVal x As Double, _
-                             ByVal a As Double, _
-                             ByVal dt As Double) As Double
+Public Function HW_XNextMean(ByVal in_x As Double, _
+                             ByVal in_a As Double, _
+                             ByVal in_dt As Double) As Double
 
-    Call HW_ValidateMeanReversion(a, "mdl_HullWhiteMath.HW_XNextMean")
-    Call HW_ValidateTime(dt, "mdl_HullWhiteMath.HW_XNextMean")
+    Call HW_ValidateMeanReversion(in_a, "mdl_HullWhiteMath.HW_XNextMean")
+    Call HW_ValidateTime(in_dt, "mdl_HullWhiteMath.HW_XNextMean")
 
-    If dt = 0# Then
-        HW_XNextMean = x
-    ElseIf Abs(a) < HW_EPS Then
-        HW_XNextMean = x
+    If in_dt = 0# Then
+        HW_XNextMean = in_x
+    ElseIf Abs(in_a) < HW_EPS Then
+        HW_XNextMean = in_x
     Else
-        HW_XNextMean = x * Exp(-a * dt)
+        HW_XNextMean = in_x * Exp(-in_a * in_dt)
     End If
 
 End Function
 
-Public Function HW_XNextVariance(ByVal a As Double, _
-                                 ByVal sigma As Double, _
-                                 ByVal dt As Double) As Double
+Public Function HW_XNextVariance(ByVal in_a As Double, _
+                                 ByVal in_Sigma As Double, _
+                                 ByVal in_dt As Double) As Double
 
-    Call HW_ValidateMeanReversion(a, "mdl_HullWhiteMath.HW_XNextVariance")
-    Call HW_ValidateSigma(sigma, "mdl_HullWhiteMath.HW_XNextVariance")
-    Call HW_ValidateTime(dt, "mdl_HullWhiteMath.HW_XNextVariance")
+    Call HW_ValidateMeanReversion(in_a, "mdl_HullWhiteMath.HW_XNextVariance")
+    Call HW_ValidateSigma(in_Sigma, "mdl_HullWhiteMath.HW_XNextVariance")
+    Call HW_ValidateTime(in_dt, "mdl_HullWhiteMath.HW_XNextVariance")
 
-    If dt = 0# Or sigma = 0# Then
+    If in_dt = 0# Or in_Sigma = 0# Then
         HW_XNextVariance = 0#
-    ElseIf Abs(a) < HW_EPS Then
-        HW_XNextVariance = sigma * sigma * dt
+    ElseIf Abs(in_a) < HW_EPS Then
+        HW_XNextVariance = in_Sigma * in_Sigma * in_dt
     Else
-        HW_XNextVariance = sigma * sigma * (1# - Exp(-2# * a * dt)) / (2# * a)
+        HW_XNextVariance = in_Sigma * in_Sigma * (1# - Exp(-2# * in_a * in_dt)) / (2# * in_a)
     End If
 
 End Function
 
-Public Function HW_XNextStdDev(ByVal a As Double, _
-                               ByVal sigma As Double, _
-                               ByVal dt As Double) As Double
+Public Function HW_XNextStdDev(ByVal in_a As Double, _
+                               ByVal in_Sigma As Double, _
+                               ByVal in_dt As Double) As Double
 
-    HW_XNextStdDev = Sqr(HW_XNextVariance(a, sigma, dt))
-
-End Function
-
-Public Function HW_XNext(ByVal x As Double, _
-                         ByVal a As Double, _
-                         ByVal sigma As Double, _
-                         ByVal dt As Double, _
-                         ByVal z As Double) As Double
-
-    HW_XNext = HW_XNextMean(x, a, dt) + HW_XNextStdDev(a, sigma, dt) * z
+    HW_XNextStdDev = Sqr(HW_XNextVariance(in_a, in_Sigma, in_dt))
 
 End Function
 
-Public Function HW_XVarianceFromZero(ByVal a As Double, _
-                                     ByVal sigma As Double, _
-                                     ByVal t As Double) As Double
+Public Function HW_XNext(ByVal in_x As Double, _
+                         ByVal in_a As Double, _
+                         ByVal in_Sigma As Double, _
+                         ByVal in_dt As Double, _
+                         ByVal in_z As Double) As Double
 
-    HW_XVarianceFromZero = HW_XNextVariance(a, sigma, t)
+    HW_XNext = HW_XNextMean(in_x, in_a, in_dt) + HW_XNextStdDev(in_a, in_Sigma, in_dt) * in_z
 
 End Function
 
-Public Function HW_XStdDevFromZero(ByVal a As Double, _
-                                   ByVal sigma As Double, _
-                                   ByVal t As Double) As Double
+Public Function HW_XVarianceFromZero(ByVal in_a As Double, _
+                                     ByVal in_Sigma As Double, _
+                                     ByVal in_Time As Double) As Double
 
-    HW_XStdDevFromZero = Sqr(HW_XVarianceFromZero(a, sigma, t))
+    HW_XVarianceFromZero = HW_XNextVariance(in_a, in_Sigma, in_Time)
+
+End Function
+
+Public Function HW_XStdDevFromZero(ByVal in_a As Double, _
+                                   ByVal in_Sigma As Double, _
+                                   ByVal in_Time As Double) As Double
+
+    HW_XStdDevFromZero = Sqr(HW_XVarianceFromZero(in_a, in_Sigma, in_Time))
 
 End Function
 
@@ -204,28 +205,28 @@ End Function
 '   q(t,T) -> sigma^2 * tau^3 / 3
 ' =============================================================================
 
-Public Function HW_IntegralXVariance(ByVal a As Double, _
-                                     ByVal sigma As Double, _
-                                     ByVal t As Double, _
-                                     ByVal T As Double) As Double
+Public Function HW_IntegralXVariance(ByVal in_a As Double, _
+                                     ByVal in_Sigma As Double, _
+                                     ByVal in_StartTime As Double, _
+                                     ByVal in_EndTime As Double) As Double
 
     Dim tau As Double
     Dim b As Double
 
-    Call HW_ValidateMeanReversion(a, "mdl_HullWhiteMath.HW_IntegralXVariance")
-    Call HW_ValidateSigma(sigma, "mdl_HullWhiteMath.HW_IntegralXVariance")
-    Call HW_ValidateTimeOrder(t, T, "mdl_HullWhiteMath.HW_IntegralXVariance")
+    Call HW_ValidateMeanReversion(in_a, "mdl_HullWhiteMath.HW_IntegralXVariance")
+    Call HW_ValidateSigma(in_Sigma, "mdl_HullWhiteMath.HW_IntegralXVariance")
+    Call HW_ValidateTimeOrder(in_StartTime, in_EndTime, "mdl_HullWhiteMath.HW_IntegralXVariance")
 
-    tau = T - t
+    tau = in_EndTime - in_StartTime
 
-    If tau = 0# Or sigma = 0# Then
+    If tau = 0# Or in_Sigma = 0# Then
         HW_IntegralXVariance = 0#
-    ElseIf Abs(a) < HW_EPS Then
-        HW_IntegralXVariance = sigma * sigma * tau * tau * tau / 3#
+    ElseIf Abs(in_a) < HW_EPS Then
+        HW_IntegralXVariance = in_Sigma * in_Sigma * tau * tau * tau / 3#
     Else
-        b = HW_B(a, t, T)
-        HW_IntegralXVariance = sigma * sigma / (a * a) * _
-            (tau - 2# * b + (1# - Exp(-2# * a * tau)) / (2# * a))
+        b = HW_B(in_a, in_StartTime, in_EndTime)
+        HW_IntegralXVariance = in_Sigma * in_Sigma / (in_a * in_a) * _
+            (tau - 2# * b + (1# - Exp(-2# * in_a * tau)) / (2# * in_a))
     End If
 
 End Function
@@ -243,43 +244,43 @@ End Function
 ' If a is close to zero, the adjustment tends to 0.5 * sigma^2 * t^2.
 ' =============================================================================
 
-Public Function HW_PhiAdjustment(ByVal a As Double, _
-                                 ByVal sigma As Double, _
-                                 ByVal t As Double) As Double
+Public Function HW_PhiAdjustment(ByVal in_a As Double, _
+                                 ByVal in_Sigma As Double, _
+                                 ByVal in_Time As Double) As Double
 
     Dim tmp As Double
 
-    Call HW_ValidateMeanReversion(a, "mdl_HullWhiteMath.HW_PhiAdjustment")
-    Call HW_ValidateSigma(sigma, "mdl_HullWhiteMath.HW_PhiAdjustment")
-    Call HW_ValidateTime(t, "mdl_HullWhiteMath.HW_PhiAdjustment")
+    Call HW_ValidateMeanReversion(in_a, "mdl_HullWhiteMath.HW_PhiAdjustment")
+    Call HW_ValidateSigma(in_Sigma, "mdl_HullWhiteMath.HW_PhiAdjustment")
+    Call HW_ValidateTime(in_Time, "mdl_HullWhiteMath.HW_PhiAdjustment")
 
-    If sigma = 0# Or t = 0# Then
+    If in_Sigma = 0# Or in_Time = 0# Then
         HW_PhiAdjustment = 0#
-    ElseIf Abs(a) < HW_EPS Then
-        HW_PhiAdjustment = 0.5 * sigma * sigma * t * t
+    ElseIf Abs(in_a) < HW_EPS Then
+        HW_PhiAdjustment = 0.5 * in_Sigma * in_Sigma * in_Time * in_Time
     Else
-        tmp = 1# - Exp(-a * t)
-        HW_PhiAdjustment = sigma * sigma * tmp * tmp / (2# * a * a)
+        tmp = 1# - Exp(-in_a * in_Time)
+        HW_PhiAdjustment = in_Sigma * in_Sigma * tmp * tmp / (2# * in_a * in_a)
     End If
 
 End Function
 
-Public Function HW_Phi(ByVal initialInstantaneousForward As Double, _
-                       ByVal a As Double, _
-                       ByVal sigma As Double, _
-                       ByVal t As Double) As Double
+Public Function HW_Phi(ByVal in_InitialInstantaneousForward As Double, _
+                       ByVal in_a As Double, _
+                       ByVal in_Sigma As Double, _
+                       ByVal in_Time As Double) As Double
 
-    HW_Phi = initialInstantaneousForward + HW_PhiAdjustment(a, sigma, t)
+    HW_Phi = in_InitialInstantaneousForward + HW_PhiAdjustment(in_a, in_Sigma, in_Time)
 
 End Function
 
-Public Function HW_ShortRateFromX(ByVal initialInstantaneousForward As Double, _
-                                  ByVal x As Double, _
-                                  ByVal a As Double, _
-                                  ByVal sigma As Double, _
-                                  ByVal t As Double) As Double
+Public Function HW_ShortRateFromX(ByVal in_InitialInstantaneousForward As Double, _
+                                  ByVal in_x As Double, _
+                                  ByVal in_a As Double, _
+                                  ByVal in_Sigma As Double, _
+                                  ByVal in_Time As Double) As Double
 
-    HW_ShortRateFromX = HW_Phi(initialInstantaneousForward, a, sigma, t) + x
+    HW_ShortRateFromX = HW_Phi(in_InitialInstantaneousForward, in_a, in_Sigma, in_Time) + in_x
 
 End Function
 
@@ -303,12 +304,12 @@ End Function
 '   DF_T(T)
 ' =============================================================================
 
-Public Function HW_DiscountBondFromX(ByVal curve As Object, _
-                                     ByVal a As Double, _
-                                     ByVal sigma As Double, _
-                                     ByVal t As Double, _
-                                     ByVal T As Double, _
-                                     ByVal x As Double) As Double
+Public Function HW_DiscountBondFromX(ByVal in_Curve As Object, _
+                                     ByVal in_a As Double, _
+                                     ByVal in_Sigma As Double, _
+                                     ByVal in_StartTime As Double, _
+                                     ByVal in_EndTime As Double, _
+                                     ByVal in_x As Double) As Double
 
     Dim df0t As Double
     Dim df0T As Double
@@ -318,16 +319,16 @@ Public Function HW_DiscountBondFromX(ByVal curve As Object, _
     Dim q_0t As Double
     Dim exponentValue As Double
 
-    If curve Is Nothing Then
+    If in_Curve Is Nothing Then
         Err.Raise vbObjectError + HW_ERR_BASE + 40, _
                   "mdl_HullWhiteMath.HW_DiscountBondFromX", _
                   "Curve object is Nothing."
     End If
 
-    Call HW_ValidateTimeOrder(t, T, "mdl_HullWhiteMath.HW_DiscountBondFromX")
+    Call HW_ValidateTimeOrder(in_StartTime, in_EndTime, "mdl_HullWhiteMath.HW_DiscountBondFromX")
 
-    df0t = curve.DF_T(t)
-    df0T = curve.DF_T(T)
+    df0t = in_Curve.DF_T(in_StartTime)
+    df0T = in_Curve.DF_T(in_EndTime)
 
     If df0t <= 0# Or df0T <= 0# Then
         Err.Raise vbObjectError + HW_ERR_BASE + 41, _
@@ -335,65 +336,65 @@ Public Function HW_DiscountBondFromX(ByVal curve As Object, _
                   "Initial discount factors must be positive."
     End If
 
-    If T = t Then
+    If in_EndTime = in_StartTime Then
         HW_DiscountBondFromX = 1#
         Exit Function
     End If
 
-    b = HW_B(a, t, T)
-    q_tT = HW_IntegralXVariance(a, sigma, t, T)
-    q_0T = HW_IntegralXVariance(a, sigma, 0#, T)
-    q_0t = HW_IntegralXVariance(a, sigma, 0#, t)
+    b = HW_B(in_a, in_StartTime, in_EndTime)
+    q_tT = HW_IntegralXVariance(in_a, in_Sigma, in_StartTime, in_EndTime)
+    q_0T = HW_IntegralXVariance(in_a, in_Sigma, 0#, in_EndTime)
+    q_0t = HW_IntegralXVariance(in_a, in_Sigma, 0#, in_StartTime)
 
-    exponentValue = -b * x + 0.5 * q_tT - 0.5 * (q_0T - q_0t)
+    exponentValue = -b * in_x + 0.5 * q_tT - 0.5 * (q_0T - q_0t)
 
     HW_DiscountBondFromX = (df0T / df0t) * Exp(exponentValue)
 
 End Function
 
-Public Function HW_ZeroRateFromBond(ByVal bondPrice As Double, _
-                                    ByVal t As Double, _
-                                    ByVal T As Double) As Double
+Public Function HW_ZeroRateFromBond(ByVal in_BondPrice As Double, _
+                                    ByVal in_StartTime As Double, _
+                                    ByVal in_EndTime As Double) As Double
 
     Dim tau As Double
 
-    Call HW_ValidateTimeOrder(t, T, "mdl_HullWhiteMath.HW_ZeroRateFromBond")
+    Call HW_ValidateTimeOrder(in_StartTime, in_EndTime, "mdl_HullWhiteMath.HW_ZeroRateFromBond")
 
-    tau = T - t
+    tau = in_EndTime - in_StartTime
 
     If tau <= 0# Then
         HW_ZeroRateFromBond = 0#
         Exit Function
     End If
 
-    If bondPrice <= 0# Then
+    If in_BondPrice <= 0# Then
         Err.Raise vbObjectError + HW_ERR_BASE + 42, _
                   "mdl_HullWhiteMath.HW_ZeroRateFromBond", _
                   "Bond price must be positive."
     End If
 
-    HW_ZeroRateFromBond = -Log(bondPrice) / tau
+    HW_ZeroRateFromBond = -Log(in_BondPrice) / tau
 
 End Function
 
-Public Function HW_ForwardRateFromBonds(ByVal bondStart As Double, _
-                                        ByVal bondEnd As Double, _
-                                        ByVal startTime As Double, _
-                                        ByVal endTime As Double) As Double
+Public Function HW_ForwardRateFromBonds(ByVal in_BondStart As Double, _
+                                        ByVal in_BondEnd As Double, _
+                                        ByVal in_StartTime As Double, _
+                                        ByVal in_EndTime As Double) As Double
 
-    If endTime <= startTime Then
+    If in_EndTime <= in_StartTime Then
         Err.Raise vbObjectError + HW_ERR_BASE + 43, _
                   "mdl_HullWhiteMath.HW_ForwardRateFromBonds", _
                   "endTime must be greater than startTime."
     End If
 
-    If bondStart <= 0# Or bondEnd <= 0# Then
+    If in_BondStart <= 0# Or in_BondEnd <= 0# Then
         Err.Raise vbObjectError + HW_ERR_BASE + 44, _
                   "mdl_HullWhiteMath.HW_ForwardRateFromBonds", _
                   "Bond prices must be positive."
     End If
 
-    HW_ForwardRateFromBonds = (bondStart / bondEnd - 1#) / (endTime - startTime)
+    HW_ForwardRateFromBonds = (in_BondStart / in_BondEnd - 1#) / (in_EndTime - in_StartTime)
 
 End Function
 
@@ -401,35 +402,35 @@ End Function
 ' Simple diagnostics helpers
 ' =============================================================================
 
-Public Function HW_IsNearZero(ByVal x As Double, _
-                              Optional ByVal tolerance As Double = HW_EPS) As Boolean
+Public Function HW_IsNearZero(ByVal in_x As Double, _
+                              Optional ByVal in_Tolerance As Double = HW_EPS) As Boolean
 
-    If tolerance <= 0# Then
+    If in_Tolerance <= 0# Then
         Err.Raise vbObjectError + HW_ERR_BASE + 50, _
                   "mdl_HullWhiteMath.HW_IsNearZero", _
                   "Tolerance must be positive."
     End If
 
-    HW_IsNearZero = (Abs(x) <= tolerance)
+    HW_IsNearZero = (Abs(in_x) <= in_Tolerance)
 
 End Function
 
-Public Function HW_Max(ByVal x As Double, ByVal y As Double) As Double
+Public Function HW_Max(ByVal in_x As Double, ByVal in_y As Double) As Double
 
-    If x >= y Then
-        HW_Max = x
+    If in_x >= in_y Then
+        HW_Max = in_x
     Else
-        HW_Max = y
+        HW_Max = in_y
     End If
 
 End Function
 
-Public Function HW_Min(ByVal x As Double, ByVal y As Double) As Double
+Public Function HW_Min(ByVal in_x As Double, ByVal in_y As Double) As Double
 
-    If x <= y Then
-        HW_Min = x
+    If in_x <= in_y Then
+        HW_Min = in_x
     Else
-        HW_Min = y
+        HW_Min = in_y
     End If
 
 End Function
