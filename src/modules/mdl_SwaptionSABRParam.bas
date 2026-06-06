@@ -25,15 +25,15 @@ Option Explicit
 '   End Sub
 ' ============================================================
 
-Public Function BuildSwaptionSABRFromSheet(ByVal ws As Worksheet, _
-                                           ByVal cCurve As clsOISStepForwardCurve, _
-                                           Optional ByVal outTopLeft As Range = Nothing, _
-                                           Optional ByVal firstDataRow As Long = 5, _
-                                           Optional ByVal lastDataRow As Long = 0, _
-                                           Optional ByVal labelCol As Long = 2, _
-                                           Optional ByVal firstVolCol As Long = 3, _
-                                           Optional ByVal lastVolCol As Long = 11, _
-                                           Optional ByVal headerRow As Long = 4) As Collection
+Public Function BuildSwaptionSABRFromSheet(ByVal in_Ws As Worksheet, _
+                                           ByVal in_CCurve As clsOISStepForwardCurve, _
+                                           Optional ByVal in_OutTopLeft As Range = Nothing, _
+                                           Optional ByVal in_FirstDataRow As Long = 5, _
+                                           Optional ByVal in_LastDataRow As Long = 0, _
+                                           Optional ByVal in_LabelCol As Long = 2, _
+                                           Optional ByVal in_FirstVolCol As Long = 3, _
+                                           Optional ByVal in_LastVolCol As Long = 11, _
+                                           Optional ByVal in_HeaderRow As Long = 4) As Collection
     Dim results As New Collection
     Dim r As Long, c As Long, n As Long
     Dim labelText As String, expiry As String, tenor As String
@@ -41,41 +41,41 @@ Public Function BuildSwaptionSABRFromSheet(ByVal ws As Worksheet, _
     Dim shifts() As Double, vols() As Double
     Dim p As clsSABRParams
 
-    If lastDataRow = 0 Then
-        lastDataRow = ws.Cells(ws.Rows.Count, labelCol).End(xlUp).Row
+    If in_LastDataRow = 0 Then
+        in_LastDataRow = in_Ws.Cells(in_Ws.Rows.Count, in_LabelCol).End(xlUp).Row
     End If
 
-    n = lastVolCol - firstVolCol + 1
+    n = in_LastVolCol - in_FirstVolCol + 1
     ReDim shifts(1 To n)
     ReDim vols(1 To n)
 
-    For c = firstVolCol To lastVolCol
-        shifts(c - firstVolCol + 1) = HeaderToShiftBps(CStr(ws.Cells(headerRow, c).Value))
+    For c = in_FirstVolCol To in_LastVolCol
+        shifts(c - in_FirstVolCol + 1) = HeaderToShiftBps(CStr(in_Ws.Cells(in_HeaderRow, c).Value))
     Next c
 
-    If Not outTopLeft Is Nothing Then
-        WriteSABRHeader outTopLeft
+    If Not in_OutTopLeft Is Nothing Then
+        WriteSABRHeader in_OutTopLeft
     End If
 
-    For r = firstDataRow To lastDataRow
-        labelText = Trim$(CStr(ws.Cells(r, labelCol).Value))
+    For r = in_FirstDataRow To in_LastDataRow
+        labelText = Trim$(CStr(in_Ws.Cells(r, in_LabelCol).Value))
         If Len(labelText) > 0 Then
             ParseExpiryTenor labelText, expiry, tenor
             tExp = PeriodToYears(expiry)
 
             'ここがポイント：
             'clsOISStepForwardCurve側の ForwardParRate(Expiry, Tenor) を利用する
-            fwd = cCurve.ForwardParRate(expiry, tenor)
+            fwd = in_CCurve.ForwardParRate(expiry, tenor)
 
-            For c = firstVolCol To lastVolCol
-                vols(c - firstVolCol + 1) = NormalizeVol(CDbl(ws.Cells(r, c).Value))
+            For c = in_FirstVolCol To in_LastVolCol
+                vols(c - in_FirstVolCol + 1) = NormalizeVol(CDbl(in_Ws.Cells(r, c).Value))
             Next c
 
             Set p = CalibrateSABR_Beta0(expiry, tenor, fwd, tExp, shifts, vols)
             results.Add p, expiry & " x " & tenor
 
-            If Not outTopLeft Is Nothing Then
-                WriteSABRRow outTopLeft.Offset(r - firstDataRow + 1, 0), p
+            If Not in_OutTopLeft Is Nothing Then
+                WriteSABRRow in_OutTopLeft.Offset(r - in_FirstDataRow + 1, 0), p
             End If
         End If
     Next r
@@ -83,14 +83,14 @@ Public Function BuildSwaptionSABRFromSheet(ByVal ws As Worksheet, _
     Set BuildSwaptionSABRFromSheet = results
 End Function
 
-Public Function CalibrateSABR_Beta0(ByVal expiry As String, _
-                                    ByVal tenor As String, _
-                                    ByVal fwd As Double, _
-                                    ByVal tExp As Double, _
-                                    ByRef shiftsBps() As Double, _
-                                    ByRef marketVols() As Double) As clsSABRParams
+Public Function CalibrateSABR_Beta0(ByVal in_Expiry As String, _
+                                    ByVal in_Tenor As String, _
+                                    ByVal in_Fwd As Double, _
+                                    ByVal in_TExp As Double, _
+                                    ByRef in_ShiftsBps() As Double, _
+                                    ByRef in_MarketVols() As Double) As clsSABRParams
     Dim atmVol As Double
-    atmVol = GetATMVol(shiftsBps, marketVols)
+    atmVol = GetATMVol(in_ShiftsBps, in_MarketVols)
 
     Dim seedAlpha(1 To 3) As Double
     Dim seedRho(1 To 5) As Double
@@ -125,7 +125,7 @@ Public Function CalibrateSABR_Beta0(ByVal expiry As String, _
                 y0(1) = AtanhSafe(seedRho(ir))
                 y0(2) = Log(seedNu(inu))
 
-                yOpt = NelderMead3_Beta0(fwd, tExp, shiftsBps, marketVols, y0, obj, iters)
+                yOpt = NelderMead3_Beta0(in_Fwd, in_TExp, in_ShiftsBps, in_MarketVols, y0, obj, iters)
 
                 If obj < bestObj Then
                     bestObj = obj
@@ -142,47 +142,47 @@ Public Function CalibrateSABR_Beta0(ByVal expiry As String, _
     UnpackParams bestY, alpha, rho, nu
 
     Dim p As New clsSABRParams
-    p.Expiry = expiry
-    p.Tenor = tenor
-    p.Forward = fwd
-    p.ExpiryYears = tExp
+    p.Expiry = in_Expiry
+    p.Tenor = in_Tenor
+    p.Forward = in_Fwd
+    p.ExpiryYears = in_TExp
     p.Alpha = alpha
     p.Beta = 0#
     p.Rho = rho
     p.Nu = nu
-    p.RMSE = CalcRMSE_Beta0(fwd, tExp, shiftsBps, marketVols, alpha, rho, nu)
-    p.MaxAbsError = CalcMaxAbsError_Beta0(fwd, tExp, shiftsBps, marketVols, alpha, rho, nu)
+    p.RMSE = CalcRMSE_Beta0(in_Fwd, in_TExp, in_ShiftsBps, in_MarketVols, alpha, rho, nu)
+    p.MaxAbsError = CalcMaxAbsError_Beta0(in_Fwd, in_TExp, in_ShiftsBps, in_MarketVols, alpha, rho, nu)
     p.Iterations = bestIters
     p.Success = (p.RMSE < 0.0005) '5bp程度。必要なら判定基準は調整
 
     Set CalibrateSABR_Beta0 = p
 End Function
 
-Public Function SABR_NormalVol_Beta0(ByVal fwd As Double, _
-                                     ByVal strike As Double, _
-                                     ByVal tExp As Double, _
-                                     ByVal alpha As Double, _
-                                     ByVal rho As Double, _
-                                     ByVal nu As Double) As Double
+Public Function SABR_NormalVol_Beta0(ByVal in_Fwd As Double, _
+                                     ByVal in_Strike As Double, _
+                                     ByVal in_TExp As Double, _
+                                     ByVal in_Alpha As Double, _
+                                     ByVal in_Rho As Double, _
+                                     ByVal in_Nu As Double) As Double
     Const EPS As Double = 0.0000000001
 
-    If alpha <= 0# Or nu < 0# Or Abs(rho) >= 1# Then
+    If in_Alpha <= 0# Or in_Nu < 0# Or Abs(in_Rho) >= 1# Then
         SABR_NormalVol_Beta0 = CVErr(xlErrNum)
         Exit Function
     End If
 
     Dim z As Double, xz As Double, ratio As Double, tmp As Double
-    z = (nu / alpha) * (fwd - strike)
+    z = (in_Nu / in_Alpha) * (in_Fwd - in_Strike)
 
     If Abs(z) < EPS Then
         ratio = 1#
     Else
-        tmp = Sqr(1# - 2# * rho * z + z * z) + z - rho
-        If tmp <= 0# Or (1# - rho) <= 0# Then
+        tmp = Sqr(1# - 2# * in_Rho * z + z * z) + z - in_Rho
+        If tmp <= 0# Or (1# - in_Rho) <= 0# Then
             SABR_NormalVol_Beta0 = CVErr(xlErrNum)
             Exit Function
         End If
-        xz = Log(tmp / (1# - rho))
+        xz = Log(tmp / (1# - in_Rho))
 
         If Abs(xz) < EPS Then
             ratio = 1#
@@ -191,16 +191,16 @@ Public Function SABR_NormalVol_Beta0(ByVal fwd As Double, _
         End If
     End If
 
-    SABR_NormalVol_Beta0 = alpha * ratio * (1# + ((2# - 3# * rho * rho) * nu * nu * tExp / 24#))
+    SABR_NormalVol_Beta0 = in_Alpha * ratio * (1# + ((2# - 3# * in_Rho * in_Rho) * in_Nu * in_Nu * in_TExp / 24#))
 End Function
 
-Private Function NelderMead3_Beta0(ByVal fwd As Double, _
-                                   ByVal tExp As Double, _
-                                   ByRef shiftsBps() As Double, _
-                                   ByRef marketVols() As Double, _
-                                   ByRef y0() As Double, _
-                                   ByRef bestObj As Double, _
-                                   ByRef iterations As Long) As Variant
+Private Function NelderMead3_Beta0(ByVal in_Fwd As Double, _
+                                   ByVal in_TExp As Double, _
+                                   ByRef in_ShiftsBps() As Double, _
+                                   ByRef in_MarketVols() As Double, _
+                                   ByRef in_Y0() As Double, _
+                                   ByRef out_BestObj As Double, _
+                                   ByRef out_Iterations As Long) As Variant
     Const N As Long = 3
     Const MAX_ITER As Long = 300
     Const TOL As Double = 0.000000000001
@@ -210,18 +210,18 @@ Private Function NelderMead3_Beta0(ByVal fwd As Double, _
     Dim i As Long, j As Long
 
     For j = 0 To N - 1
-        simplex(0, j) = y0(j)
+        simplex(0, j) = in_Y0(j)
     Next j
 
     For i = 1 To N
         For j = 0 To N - 1
-            simplex(i, j) = y0(j)
+            simplex(i, j) = in_Y0(j)
         Next j
         simplex(i, i - 1) = simplex(i, i - 1) + 0.15
     Next i
 
     For i = 0 To N
-        val(i) = Objective_Beta0(fwd, tExp, shiftsBps, marketVols, simplex, i)
+        val(i) = Objective_Beta0(in_Fwd, in_TExp, in_ShiftsBps, in_MarketVols, simplex, i)
     Next i
 
     Dim lo As Long, hi As Long, nhi As Long
@@ -251,14 +251,14 @@ Private Function NelderMead3_Beta0(ByVal fwd As Double, _
         For j = 0 To N - 1
             xr(j) = centroid(j) + (centroid(j) - simplex(hi, j))
         Next j
-        fr = ObjectiveVector_Beta0(fwd, tExp, shiftsBps, marketVols, xr)
+        fr = ObjectiveVector_Beta0(in_Fwd, in_TExp, in_ShiftsBps, in_MarketVols, xr)
 
         If fr < val(lo) Then
             ' expansion
             For j = 0 To N - 1
                 xe(j) = centroid(j) + 2# * (xr(j) - centroid(j))
             Next j
-            fe = ObjectiveVector_Beta0(fwd, tExp, shiftsBps, marketVols, xe)
+            fe = ObjectiveVector_Beta0(in_Fwd, in_TExp, in_ShiftsBps, in_MarketVols, xe)
 
             If fe < fr Then
                 ReplacePoint simplex, val, hi, xe, fe
@@ -281,7 +281,7 @@ Private Function NelderMead3_Beta0(ByVal fwd As Double, _
                 Next j
             End If
 
-            fc = ObjectiveVector_Beta0(fwd, tExp, shiftsBps, marketVols, xc)
+            fc = ObjectiveVector_Beta0(in_Fwd, in_TExp, in_ShiftsBps, in_MarketVols, xc)
 
             If fc < val(hi) Then
                 ReplacePoint simplex, val, hi, xc, fc
@@ -292,7 +292,7 @@ Private Function NelderMead3_Beta0(ByVal fwd As Double, _
                         For j = 0 To N - 1
                             simplex(i, j) = simplex(lo, j) + 0.5 * (simplex(i, j) - simplex(lo, j))
                         Next j
-                        val(i) = Objective_Beta0(fwd, tExp, shiftsBps, marketVols, simplex, i)
+                        val(i) = Objective_Beta0(in_Fwd, in_TExp, in_ShiftsBps, in_MarketVols, simplex, i)
                     End If
                 Next i
             End If
@@ -306,31 +306,31 @@ Private Function NelderMead3_Beta0(ByVal fwd As Double, _
         ans(j) = simplex(lo, j)
     Next j
 
-    bestObj = val(lo)
-    iterations = iter
+    out_BestObj = val(lo)
+    out_Iterations = iter
     NelderMead3_Beta0 = ans
 End Function
 
-Private Function Objective_Beta0(ByVal fwd As Double, _
-                                 ByVal tExp As Double, _
-                                 ByRef shiftsBps() As Double, _
-                                 ByRef marketVols() As Double, _
-                                 ByRef simplex() As Double, _
-                                 ByVal idx As Long) As Double
+Private Function Objective_Beta0(ByVal in_Fwd As Double, _
+                                 ByVal in_TExp As Double, _
+                                 ByRef in_ShiftsBps() As Double, _
+                                 ByRef in_MarketVols() As Double, _
+                                 ByRef in_Simplex() As Double, _
+                                 ByVal in_Idx As Long) As Double
     Dim y(0 To 2) As Double
-    y(0) = simplex(idx, 0)
-    y(1) = simplex(idx, 1)
-    y(2) = simplex(idx, 2)
-    Objective_Beta0 = ObjectiveVector_Beta0(fwd, tExp, shiftsBps, marketVols, y)
+    y(0) = in_Simplex(in_Idx, 0)
+    y(1) = in_Simplex(in_Idx, 1)
+    y(2) = in_Simplex(in_Idx, 2)
+    Objective_Beta0 = ObjectiveVector_Beta0(in_Fwd, in_TExp, in_ShiftsBps, in_MarketVols, y)
 End Function
 
-Private Function ObjectiveVector_Beta0(ByVal fwd As Double, _
-                                       ByVal tExp As Double, _
-                                       ByRef shiftsBps() As Double, _
-                                       ByRef marketVols() As Double, _
-                                       ByRef y() As Double) As Double
+Private Function ObjectiveVector_Beta0(ByVal in_Fwd As Double, _
+                                       ByVal in_TExp As Double, _
+                                       ByRef in_ShiftsBps() As Double, _
+                                       ByRef in_MarketVols() As Double, _
+                                       ByRef in_Y() As Double) As Double
     Dim alpha As Double, rho As Double, nu As Double
-    UnpackParams y, alpha, rho, nu
+    UnpackParams in_Y, alpha, rho, nu
 
     If alpha <= 0# Or nu < 0# Or Abs(rho) >= 0.999999 Then
         ObjectiveVector_Beta0 = 1E+99
@@ -338,29 +338,29 @@ Private Function ObjectiveVector_Beta0(ByVal fwd As Double, _
     End If
 
     Dim i As Long, k As Double, mdl As Double, e As Double, sse As Double
-    For i = LBound(shiftsBps) To UBound(shiftsBps)
-        k = fwd + shiftsBps(i) / 10000#
-        mdl = SABR_NormalVol_Beta0(fwd, k, tExp, alpha, rho, nu)
-        e = mdl - marketVols(i)
+    For i = LBound(in_ShiftsBps) To UBound(in_ShiftsBps)
+        k = in_Fwd + in_ShiftsBps(i) / 10000#
+        mdl = SABR_NormalVol_Beta0(in_Fwd, k, in_TExp, alpha, rho, nu)
+        e = mdl - in_MarketVols(i)
         sse = sse + e * e
     Next i
 
     ObjectiveVector_Beta0 = sse
 End Function
 
-Private Function CalcRMSE_Beta0(ByVal fwd As Double, _
-                                ByVal tExp As Double, _
-                                ByRef shiftsBps() As Double, _
-                                ByRef marketVols() As Double, _
-                                ByVal alpha As Double, _
-                                ByVal rho As Double, _
-                                ByVal nu As Double) As Double
+Private Function CalcRMSE_Beta0(ByVal in_Fwd As Double, _
+                                ByVal in_TExp As Double, _
+                                ByRef in_ShiftsBps() As Double, _
+                                ByRef in_MarketVols() As Double, _
+                                ByVal in_Alpha As Double, _
+                                ByVal in_Rho As Double, _
+                                ByVal in_Nu As Double) As Double
     Dim i As Long, n As Long, k As Double, mdl As Double, e As Double, sse As Double
 
-    For i = LBound(shiftsBps) To UBound(shiftsBps)
-        k = fwd + shiftsBps(i) / 10000#
-        mdl = SABR_NormalVol_Beta0(fwd, k, tExp, alpha, rho, nu)
-        e = mdl - marketVols(i)
+    For i = LBound(in_ShiftsBps) To UBound(in_ShiftsBps)
+        k = in_Fwd + in_ShiftsBps(i) / 10000#
+        mdl = SABR_NormalVol_Beta0(in_Fwd, k, in_TExp, in_Alpha, in_Rho, in_Nu)
+        e = mdl - in_MarketVols(i)
         sse = sse + e * e
         n = n + 1
     Next i
@@ -368,61 +368,61 @@ Private Function CalcRMSE_Beta0(ByVal fwd As Double, _
     CalcRMSE_Beta0 = Sqr(sse / n)
 End Function
 
-Private Function CalcMaxAbsError_Beta0(ByVal fwd As Double, _
-                                       ByVal tExp As Double, _
-                                       ByRef shiftsBps() As Double, _
-                                       ByRef marketVols() As Double, _
-                                       ByVal alpha As Double, _
-                                       ByVal rho As Double, _
-                                       ByVal nu As Double) As Double
+Private Function CalcMaxAbsError_Beta0(ByVal in_Fwd As Double, _
+                                       ByVal in_TExp As Double, _
+                                       ByRef in_ShiftsBps() As Double, _
+                                       ByRef in_MarketVols() As Double, _
+                                       ByVal in_Alpha As Double, _
+                                       ByVal in_Rho As Double, _
+                                       ByVal in_Nu As Double) As Double
     Dim i As Long, k As Double, mdl As Double, e As Double, mx As Double
 
-    For i = LBound(shiftsBps) To UBound(shiftsBps)
-        k = fwd + shiftsBps(i) / 10000#
-        mdl = SABR_NormalVol_Beta0(fwd, k, tExp, alpha, rho, nu)
-        e = Abs(mdl - marketVols(i))
+    For i = LBound(in_ShiftsBps) To UBound(in_ShiftsBps)
+        k = in_Fwd + in_ShiftsBps(i) / 10000#
+        mdl = SABR_NormalVol_Beta0(in_Fwd, k, in_TExp, in_Alpha, in_Rho, in_Nu)
+        e = Abs(mdl - in_MarketVols(i))
         If e > mx Then mx = e
     Next i
 
     CalcMaxAbsError_Beta0 = mx
 End Function
 
-Private Sub WriteSABRHeader(ByVal topLeft As Range)
-    topLeft.Resize(1, 12).Value = Array( _
+Private Sub WriteSABRHeader(ByVal in_TopLeft As Range)
+    in_TopLeft.Resize(1, 12).Value = Array( _
         "Expiry", "Tenor", "Forward", "Alpha", "Beta", "Rho", "Nu", _
         "RMSE", "RMSE(bp)", "MaxAbsErr", "MaxAbsErr(bp)", "Success")
 End Sub
 
-Private Sub WriteSABRRow(ByVal topLeft As Range, ByVal p As clsSABRParams)
-    topLeft.Offset(0, 0).Value = p.Expiry
-    topLeft.Offset(0, 1).Value = p.Tenor
-    topLeft.Offset(0, 2).Value = p.Forward
-    topLeft.Offset(0, 3).Value = p.Alpha
-    topLeft.Offset(0, 4).Value = p.Beta
-    topLeft.Offset(0, 5).Value = p.Rho
-    topLeft.Offset(0, 6).Value = p.Nu
-    topLeft.Offset(0, 7).Value = p.RMSE
-    topLeft.Offset(0, 8).Value = p.RMSE * 10000#
-    topLeft.Offset(0, 9).Value = p.MaxAbsError
-    topLeft.Offset(0, 10).Value = p.MaxAbsError * 10000#
-    topLeft.Offset(0, 11).Value = p.Success
+Private Sub WriteSABRRow(ByVal in_TopLeft As Range, ByVal in_P As clsSABRParams)
+    in_TopLeft.Offset(0, 0).Value = in_P.Expiry
+    in_TopLeft.Offset(0, 1).Value = in_P.Tenor
+    in_TopLeft.Offset(0, 2).Value = in_P.Forward
+    in_TopLeft.Offset(0, 3).Value = in_P.Alpha
+    in_TopLeft.Offset(0, 4).Value = in_P.Beta
+    in_TopLeft.Offset(0, 5).Value = in_P.Rho
+    in_TopLeft.Offset(0, 6).Value = in_P.Nu
+    in_TopLeft.Offset(0, 7).Value = in_P.RMSE
+    in_TopLeft.Offset(0, 8).Value = in_P.RMSE * 10000#
+    in_TopLeft.Offset(0, 9).Value = in_P.MaxAbsError
+    in_TopLeft.Offset(0, 10).Value = in_P.MaxAbsError * 10000#
+    in_TopLeft.Offset(0, 11).Value = in_P.Success
 End Sub
 
-Private Sub ParseExpiryTenor(ByVal labelText As String, _
-                             ByRef expiry As String, _
-                             ByRef tenor As String)
+Private Sub ParseExpiryTenor(ByVal in_LabelText As String, _
+                             ByRef out_Expiry As String, _
+                             ByRef out_Tenor As String)
     Dim s As String, a As Variant
-    s = UCase$(Replace(labelText, " ", ""))
+    s = UCase$(Replace(in_LabelText, " ", ""))
     a = Split(s, "X")
-    If UBound(a) <> 1 Then Err.Raise vbObjectError + 100, , "Expiry x Tenor の形式ではありません: " & labelText
+    If UBound(a) <> 1 Then Err.Raise vbObjectError + 100, , "Expiry x Tenor の形式ではありません: " & in_LabelText
 
-    expiry = CStr(a(0))
-    tenor = CStr(a(1))
+    out_Expiry = CStr(a(0))
+    out_Tenor = CStr(a(1))
 End Sub
 
-Private Function HeaderToShiftBps(ByVal headerText As String) As Double
+Private Function HeaderToShiftBps(ByVal in_HeaderText As String) As Double
     Dim s As String
-    s = UCase$(Trim$(headerText))
+    s = UCase$(Trim$(in_HeaderText))
 
     If s = "ATM" Then
         HeaderToShiftBps = 0#
@@ -435,15 +435,15 @@ Private Function HeaderToShiftBps(ByVal headerText As String) As Double
     s = Trim$(s)
 
     If Len(s) = 0 Or Not IsNumeric(s) Then
-        Err.Raise vbObjectError + 101, , "bpsヘッダーを読めません: " & headerText
+        Err.Raise vbObjectError + 101, , "bpsヘッダーを読めません: " & in_HeaderText
     End If
 
     HeaderToShiftBps = CDbl(s)
 End Function
 
-Private Function PeriodToYears(ByVal periodText As String) As Double
+Private Function PeriodToYears(ByVal in_PeriodText As String) As Double
     Dim s As String, unit As String, num As Double
-    s = UCase$(Trim$(periodText))
+    s = UCase$(Trim$(in_PeriodText))
 
     unit = Right$(s, 1)
     num = CDbl(Left$(s, Len(s) - 1))
@@ -458,95 +458,95 @@ Private Function PeriodToYears(ByVal periodText As String) As Double
         Case "Y"
             PeriodToYears = num
         Case Else
-            Err.Raise vbObjectError + 102, , "期間を年換算できません: " & periodText
+            Err.Raise vbObjectError + 102, , "期間を年換算できません: " & in_PeriodText
     End Select
 End Function
 
-Private Function NormalizeVol(ByVal x As Double) As Double
-    If x < 0# Then Err.Raise vbObjectError + 103, , "Volがマイナスです: " & x
+Private Function NormalizeVol(ByVal in_X As Double) As Double
+    If in_X < 0# Then Err.Raise vbObjectError + 103, , "Volがマイナスです: " & in_X
 
     'Excelの%表示なら 0.5077% はセル値 0.005077。
     '手入力で 0.5077 と入っている場合だけ 100で割る。
-    If x > 0.2 Then
-        NormalizeVol = x / 100#
+    If in_X > 0.2 Then
+        NormalizeVol = in_X / 100#
     Else
-        NormalizeVol = x
+        NormalizeVol = in_X
     End If
 End Function
 
-Private Function GetATMVol(ByRef shiftsBps() As Double, _
-                           ByRef vols() As Double) As Double
+Private Function GetATMVol(ByRef in_ShiftsBps() As Double, _
+                           ByRef in_Vols() As Double) As Double
     Dim i As Long, bestI As Long, bestAbs As Double
     bestAbs = 1E+99
 
-    For i = LBound(shiftsBps) To UBound(shiftsBps)
-        If Abs(shiftsBps(i)) < bestAbs Then
-            bestAbs = Abs(shiftsBps(i))
+    For i = LBound(in_ShiftsBps) To UBound(in_ShiftsBps)
+        If Abs(in_ShiftsBps(i)) < bestAbs Then
+            bestAbs = Abs(in_ShiftsBps(i))
             bestI = i
         End If
     Next i
 
-    GetATMVol = vols(bestI)
+    GetATMVol = in_Vols(bestI)
 End Function
 
-Private Sub UnpackParams(ByRef y() As Double, _
-                         ByRef alpha As Double, _
-                         ByRef rho As Double, _
-                         ByRef nu As Double)
-    alpha = Exp(y(0))
-    rho = TanhSafe(y(1))
-    nu = Exp(y(2))
+Private Sub UnpackParams(ByRef in_Y() As Double, _
+                         ByRef out_Alpha As Double, _
+                         ByRef out_Rho As Double, _
+                         ByRef out_Nu As Double)
+    out_Alpha = Exp(in_Y(0))
+    out_Rho = TanhSafe(in_Y(1))
+    out_Nu = Exp(in_Y(2))
 
-    If rho > 0.999 Then rho = 0.999
-    If rho < -0.999 Then rho = -0.999
+    If out_Rho > 0.999 Then out_Rho = 0.999
+    If out_Rho < -0.999 Then out_Rho = -0.999
 End Sub
 
-Private Function AtanhSafe(ByVal x As Double) As Double
-    If x >= 0.999 Then x = 0.999
-    If x <= -0.999 Then x = -0.999
-    AtanhSafe = 0.5 * Log((1# + x) / (1# - x))
+Private Function AtanhSafe(ByVal in_X As Double) As Double
+    If in_X >= 0.999 Then in_X = 0.999
+    If in_X <= -0.999 Then in_X = -0.999
+    AtanhSafe = 0.5 * Log((1# + in_X) / (1# - in_X))
 End Function
 
-Private Function TanhSafe(ByVal x As Double) As Double
-    If x > 20# Then
+Private Function TanhSafe(ByVal in_X As Double) As Double
+    If in_X > 20# Then
         TanhSafe = 1#
-    ElseIf x < -20# Then
+    ElseIf in_X < -20# Then
         TanhSafe = -1#
     Else
-        TanhSafe = (Exp(2# * x) - 1#) / (Exp(2# * x) + 1#)
+        TanhSafe = (Exp(2# * in_X) - 1#) / (Exp(2# * in_X) + 1#)
     End If
 End Function
 
-Private Sub SortSimplex(ByRef val() As Double, _
-                        ByRef simplex() As Double, _
-                        ByRef lo As Long, _
-                        ByRef hi As Long, _
-                        ByRef nhi As Long)
+Private Sub SortSimplex(ByRef inout_Val() As Double, _
+                        ByRef inout_Simplex() As Double, _
+                        ByRef out_Lo As Long, _
+                        ByRef out_Hi As Long, _
+                        ByRef out_Nhi As Long)
     Dim i As Long
-    lo = LBound(val)
-    hi = LBound(val)
+    out_Lo = LBound(inout_Val)
+    out_Hi = LBound(inout_Val)
 
-    For i = LBound(val) To UBound(val)
-        If val(i) < val(lo) Then lo = i
-        If val(i) > val(hi) Then hi = i
+    For i = LBound(inout_Val) To UBound(inout_Val)
+        If inout_Val(i) < inout_Val(out_Lo) Then out_Lo = i
+        If inout_Val(i) > inout_Val(out_Hi) Then out_Hi = i
     Next i
 
-    nhi = lo
-    For i = LBound(val) To UBound(val)
-        If i <> hi Then
-            If nhi = hi Or val(i) > val(nhi) Then nhi = i
+    out_Nhi = out_Lo
+    For i = LBound(inout_Val) To UBound(inout_Val)
+        If i <> out_Hi Then
+            If out_Nhi = out_Hi Or inout_Val(i) > inout_Val(out_Nhi) Then out_Nhi = i
         End If
     Next i
 End Sub
 
-Private Sub ReplacePoint(ByRef simplex() As Double, _
-                         ByRef val() As Double, _
-                         ByVal idx As Long, _
-                         ByRef y() As Double, _
-                         ByVal obj As Double)
+Private Sub ReplacePoint(ByRef inout_Simplex() As Double, _
+                         ByRef inout_Val() As Double, _
+                         ByVal in_Idx As Long, _
+                         ByRef in_Y() As Double, _
+                         ByVal in_Obj As Double)
     Dim j As Long
     For j = 0 To 2
-        simplex(idx, j) = y(j)
+        inout_Simplex(in_Idx, j) = in_Y(j)
     Next j
-    val(idx) = obj
+    inout_Val(in_Idx) = in_Obj
 End Sub
