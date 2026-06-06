@@ -14,7 +14,7 @@ VBAクラスを単純に横並びで管理するのではなく、目的別に�
 | `02_OIS_Swap` | OISスワップのキャッシュフロー生成と評価 | 対応中・拡張中 |
 | `03_SABR` | Normal SABR のスマイル、密度、分位点計算 | 計画中・拡張中 |
 | `04_Hull-White_1F` | Hull-White 1F のキャリブレーションと将来カーブシミュレーション | 対応中 |
-| `05_cms_spread` | CMSスプレッド評価。現時点では主にスワップション・ボラティリティ処理 | 計画中・一部対応 |
+| `05_CMS-Spread` | CMSスプレッド評価。現時点では主にスワップション・ボラティリティ処理 | 計画中・一部対応 |
 
 ## 最終的なリポジトリ構成
 
@@ -32,7 +32,7 @@ VBA-Rates-Models/
 │  │  └─ Design.md
 │  ├─ 04_Hull-White_1F/
 │  │  └─ Design.md
-│  └─ 05_cms_spread/
+│  └─ 05_CMS-Spread/
 │     └─ Design.md
 ├─ src/
 │  ├─ common/
