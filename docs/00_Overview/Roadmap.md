@@ -65,7 +65,8 @@ RECEIVER : FixedLegPV - FloatingLegPV
 
 ## フェーズ6：CMSスプレッド評価
 
-対象モジュール：`05_cms_spread`
+対象モジュール：`05_cms_spread`  
+設計ドキュメント：`docs/05_CMS-Spread/Design.md`
 
 - CMS評価が本格化するまでは、ATMスワップション・ボラティリティ処理を中心に整理します。
 - 将来的に以下を追加します。
