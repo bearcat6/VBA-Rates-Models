@@ -2,7 +2,7 @@
 
 Excel/VBAでJPY金利分析を試作するためのリポジトリです。
 
-このリポジトリでは、JPY OIS割引カーブ、OISスワップ評価、SABRスマイル、1ファクター Hull-White モデル、CMSスプレッド評価への拡張を、目的別のモジュールとして管理します。
+このリポジトリでは、JPY OIS割引カーブ、OISスワップ評価、SABRスマイル、1ファクター Hull-White モデル、CMSスプレッド評価、乱数生成ロジックへの拡張を、目的別のモジュールとして管理します。
 
 ## 対象範囲
 
@@ -15,6 +15,7 @@ VBAクラスを単純に横並びで管理するのではなく、目的別に�
 | `03_SABR` | Normal SABR のスマイル、密度、分位点計算 | 計画中・拡張中 |
 | `04_Hull-White_1F` | Hull-White 1F のキャリブレーションと将来カーブシミュレーション | 対応中 |
 | `05_CMS-Spread` | CMSスプレッド評価。現時点では主にスワップション・ボラティリティ処理 | 計画中・一部対応 |
+| `06_RandomNumber` | モンテカルロシミュレーション用の乱数生成設計 | 対応中・拡張中 |
 
 ## 最終的なリポジトリ構成
 
@@ -32,8 +33,10 @@ VBA-Rates-Models/
 │  │  └─ Design.md
 │  ├─ 04_Hull-White_1F/
 │  │  └─ Design.md
-│  └─ 05_CMS-Spread/
-│     └─ Design.md
+│  ├─ 05_CMS-Spread/
+│  │  └─ Design.md
+│  └─ 06_RandomNumber/
+│     └─ README.md
 ├─ src/
 │  ├─ common/
 │  ├─ 01_discount_curve/
@@ -67,6 +70,8 @@ common + 01_discount_curve + 03_sabr
 ```
 
 `03_sabr` はCMS専用ではなく、リスク分析やストレスシナリオ作成にも使えるため、CMSとは独立したモジュールとして管理します。
+
+`06_RandomNumber` は、Hull-White 1F などのモンテカルロシミュレーションで共通利用する乱数生成ロジックを整理する領域です。
 
 ## 現在の移行方針
 
