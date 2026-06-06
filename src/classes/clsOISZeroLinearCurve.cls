@@ -453,7 +453,8 @@ Public Function ForwardRate_T(ByVal T1 As Double, _
 End Function
 
 Public Function InstantaneousForward(ByVal T As Double, _
-                                     Optional ByVal eps As Double = 0.0001) As Double
+                                     Optional ByVal eps As Double = 0.00273972602739726) As Double
+
 
   Dim tLow As Double
   Dim tHigh As Double
