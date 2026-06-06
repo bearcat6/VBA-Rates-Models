@@ -314,9 +314,9 @@ Public Function HW_DiscountBondFromX(ByVal in_Curve As Object, _
     Dim df0Start As Double
     Dim df0End As Double
     Dim b As Double
-    Dim q_tT As Double
-    Dim q_0T As Double
-    Dim q_0t As Double
+    Dim q_startEnd As Double
+    Dim q_0End As Double
+    Dim q_0Start As Double
     Dim exponentValue As Double
 
     If in_Curve Is Nothing Then
@@ -342,11 +342,11 @@ Public Function HW_DiscountBondFromX(ByVal in_Curve As Object, _
     End If
 
     b = HW_B(in_a, in_StartTime, in_EndTime)
-    q_tT = HW_IntegralXVariance(in_a, in_Sigma, in_StartTime, in_EndTime)
-    q_0T = HW_IntegralXVariance(in_a, in_Sigma, 0#, in_EndTime)
-    q_0t = HW_IntegralXVariance(in_a, in_Sigma, 0#, in_StartTime)
+    q_startEnd = HW_IntegralXVariance(in_a, in_Sigma, in_StartTime, in_EndTime)
+    q_0End = HW_IntegralXVariance(in_a, in_Sigma, 0#, in_EndTime)
+    q_0Start = HW_IntegralXVariance(in_a, in_Sigma, 0#, in_StartTime)
 
-    exponentValue = -b * in_x + 0.5 * q_tT - 0.5 * (q_0T - q_0t)
+    exponentValue = -b * in_x + 0.5 * q_startEnd - 0.5 * (q_0End - q_0Start)
 
     HW_DiscountBondFromX = (df0End / df0Start) * Exp(exponentValue)
 
