@@ -12,7 +12,7 @@
 | `docs/00_Overview/Roadmap.md` | 開発順序と移行ロードマップ |
 | `docs/01_Discount_Curve/Design.md` | 割引カーブ設計 |
 | `docs/02_OIS_Swap/Design.md` | OISスワップ評価設計 |
-| `docs/03_sabr/Design.md` | Normal SABR設計 |
+| `docs/03_SABR/Design.md` | Normal SABR設計 |
 | `docs/04_hull_white_1f/Design.md` | Hull-White 1F設計 |
 | `docs/05_cms_spread/Design.md` | CMSスプレッド評価設計 |
 
