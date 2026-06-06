@@ -311,8 +311,8 @@ Public Function HW_DiscountBondFromX(ByVal in_Curve As Object, _
                                      ByVal in_EndTime As Double, _
                                      ByVal in_x As Double) As Double
 
-    Dim df0t As Double
-    Dim df0T As Double
+    Dim df0Start As Double
+    Dim df0End As Double
     Dim b As Double
     Dim q_tT As Double
     Dim q_0T As Double
@@ -327,10 +327,10 @@ Public Function HW_DiscountBondFromX(ByVal in_Curve As Object, _
 
     Call HW_ValidateTimeOrder(in_StartTime, in_EndTime, "mdl_HullWhiteMath.HW_DiscountBondFromX")
 
-    df0t = in_Curve.DF_T(in_StartTime)
-    df0T = in_Curve.DF_T(in_EndTime)
+    df0Start = in_Curve.DF_T(in_StartTime)
+    df0End = in_Curve.DF_T(in_EndTime)
 
-    If df0t <= 0# Or df0T <= 0# Then
+    If df0Start <= 0# Or df0End <= 0# Then
         Err.Raise vbObjectError + HW_ERR_BASE + 41, _
                   "mdl_HullWhiteMath.HW_DiscountBondFromX", _
                   "Initial discount factors must be positive."
@@ -348,7 +348,7 @@ Public Function HW_DiscountBondFromX(ByVal in_Curve As Object, _
 
     exponentValue = -b * in_x + 0.5 * q_tT - 0.5 * (q_0T - q_0t)
 
-    HW_DiscountBondFromX = (df0T / df0t) * Exp(exponentValue)
+    HW_DiscountBondFromX = (df0End / df0Start) * Exp(exponentValue)
 
 End Function
 
