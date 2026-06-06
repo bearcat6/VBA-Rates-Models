@@ -32,6 +32,7 @@ VBA-Rates-Models
 │  │  ├─ clsVolSurface.cls
 │  │  ├─ clsSABRParams.cls
 │  │  ├─ clsHullWhite1F.cls
+│  │  ├─ clsHWCalibrator.cls
 │  │  ├─ clsHWSimulator.cls
 │  │  └─ clsRandomNormal.cls
 │  └─ modules
@@ -212,8 +213,39 @@ ZeroRateCont(in_TargetDate) As Double
 ForwardRate(in_StartDate, in_EndDate) As Double
 GetPointTable() As Variant
 ExportPointsToSheet(in_SheetName, in_StartCell)
-
 ```
+
+### 5.4 clsHWCalibrator
+
+#### 役割
+
+`clsHWCalibrator` は、ディスカウントカーブとボラティリティ・サーフェスを入力として、1ファクター Hull-White モデルのパラメータを推定するクラスである。
+
+初期実装では、平均回帰パラメータ `a` は外部から固定値として与え、短期金利ボラティリティ `sigma` を ATM normal swaption volatility にフィットする。
+
+#### 主な責務
+
+- ディスカウントカーブの参照
+- Hull-White 1F キャリブレーション用のボラティリティ・サーフェスの参照
+- キャリブレーション対象となる expiry / tenor quote の保持
+- 固定された `a` に対する `sigma` の推定
+- 市場ボラティリティとモデルボラティリティの誤差計算
+- キャリブレーション結果およびレポート用配列の生成
+
+#### 初期スコープ
+
+初期実装では、厳密な Jamshidian decomposition によるスワップション評価は行わない。
+
+スワップレートの Hull-White factor に対する感応度を用いた簡易的な normal volatility 近似により、`sigma` を推定する。
+
+この実装は、将来金利カーブのモンテカルロ・シミュレーションやストレスカーブ作成に用いる初期パラメータ推定を目的とする。
+
+#### 将来拡張
+
+将来的には、`clsHullWhite1F` または `mdl_HullWhiteMath` に厳密な bond option / swaption pricing を実装し、`clsHWCalibrator` の目的関数から呼び出す設計に拡張する。
+
+また、初期実装では `a` を固定値として扱うが、将来的には `a` と `sigma` の同時推定、または expiry / tenor ごとのフィット状況を確認する診断機能を追加する。
+
 ## 6. 標準モジュール設計
 
 ### 6.1 mdl_BusinessDay
