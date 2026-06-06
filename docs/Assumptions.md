@@ -153,3 +153,14 @@
 - ただし、明示的に allowFlatExtrapolation = True とした場合のみ、最短・最長グリッドの端点ボラを使用する
 - 本サーフェスは、CMS関連評価のための実務的な補間サーフェスであり、完全な無裁定スワップション・ボラティリティモデルではない
 - Black Vol / Shifted Black Vol を扱う場合は、別サーフェスまたは volatility type を明示的に分ける
+
+## Hull-White 1F
+
+- 対象モデルは 1-factor Hull-White model とする。
+- 平均回帰パラメータ `a` とボラティリティ `sigma` は定数とする。
+- 初期実装では、`a` は外部から固定値として与える。
+- `sigma` は ATM normal swaption volatility へフィットする。
+- 実装では shifted short-rate representation を使用する。
+- `theta(t)` は直接入力せず、初期 discount curve と整合するように扱う。
+- 時間軸は評価日からの year fraction `T` とする。
+- Hull-White 関連クラスは curve object に対して `DF_T(T)` と `InstantaneousForward(T)` を要求する。
