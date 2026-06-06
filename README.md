@@ -1,27 +1,27 @@
 # VBA Rates Models
 
-JPY rates analytics prototypes implemented in Excel/VBA.
+Excel/VBAでJPY金利分析を試作するためのリポジトリです。
 
-This repository is organized as a modular VBA library for building JPY OIS discount curves, valuing OIS swaps, fitting SABR smiles, calibrating and simulating a 1-factor Hull-White model, and extending toward CMS spread valuation.
+このリポジトリでは、JPY OIS割引カーブ、OISスワップ評価、SABRスマイル、1ファクター Hull-White モデル、CMSスプレッド評価への拡張を、目的別のモジュールとして管理します。
 
-## Scope
+## 対象範囲
 
-The repository is managed by purpose rather than by a flat list of VBA classes.
+VBAクラスを単純に横並びで管理するのではなく、目的別に分けて管理します。
 
-| Area | Purpose | Status |
+| 領域 | 目的 | 状況 |
 |---|---|---|
-| `01_discount_curve` | Basic JPY TONA/OIS discount curve construction | Active |
-| `02_ois_swap` | OIS swap cashflow and valuation logic | Active / expanding |
-| `03_sabr` | Normal SABR smile, density and quantile logic | Planned / expanding |
-| `04_hull_white_1f` | Hull-White 1F calibration and Monte Carlo curve simulation | Active |
-| `05_cms_spread` | CMS spread valuation; currently mainly swaption volatility handling | Planned / partial |
+| `01_discount_curve` | JPY TONA/OIS の基本的な割引カーブ構築 | 対応中 |
+| `02_ois_swap` | OISスワップのキャッシュフロー生成と評価 | 対応中・拡張中 |
+| `03_sabr` | Normal SABR のスマイル、密度、分位点計算 | 計画中・拡張中 |
+| `04_hull_white_1f` | Hull-White 1F のキャリブレーションと将来カーブシミュレーション | 対応中 |
+| `05_cms_spread` | CMSスプレッド評価。現時点では主にスワップション・ボラティリティ処理 | 計画中・一部対応 |
 
-## Target Repository Structure
+## 最終的なリポジトリ構成
 
 ```text
 VBA-Rates-Models/
 ├─ docs/
-│  ├─ 00_overview/
+│  ├─ 00_Overview/
 │  │  ├─ Module_Map.md
 │  │  └─ Roadmap.md
 │  ├─ 01_discount_curve/
@@ -46,9 +46,9 @@ VBA-Rates-Models/
 └─ README.md
 ```
 
-## Dependency Direction
+## 依存関係の方向
 
-The intended dependency direction is one-way.
+依存関係は、原則として一方向にします。
 
 ```text
 common
@@ -66,22 +66,26 @@ common + 01_discount_curve + 03_sabr
 05_cms_spread
 ```
 
-`03_sabr` is kept independent from CMS because the same smile, density and quantile logic can also be used for risk analysis and stress scenario construction.
+`03_sabr` はCMS専用ではなく、リスク分析やストレスシナリオ作成にも使えるため、CMSとは独立したモジュールとして管理します。
 
-## Current Migration Policy
+## 現在の移行方針
 
-Existing VBA files are retained until they are safely moved with their full contents preserved. The final module structure and documentation are prepared first so that future class/module moves can be done mechanically and reviewed one file at a time.
+既存のVBAファイルは、内容を安全に保持したまま移動できる状態になるまで、当面は旧パスにも残します。
 
-See `docs/00_overview/Module_Map.md` for the migration map from the old flat structure to the new purpose-based structure.
+まず最終的なモジュール構成とドキュメントを整備し、その後、VBAファイルを1つずつ内容を壊さないように移動します。
 
-## Design Principles
+旧来のフラット構成から新しい目的別構成への移動表は、`docs/00_Overview/Module_Map.md` を参照してください。
 
-- Keep common utilities separate from product and model logic.
-- Keep discount curve construction independent from trade valuation.
-- Keep model calibration and simulation independent from Excel sheet I/O.
-- Use Excel/VBA-friendly interfaces rather than excessive abstraction.
-- Avoid proprietary, customer, or confidential data.
+## 設計方針
 
-## Disclaimer
+- 共通部品と、商品評価・モデルロジックを分けます。
+- 割引カーブ構築と取引評価を分けます。
+- モデルのキャリブレーションやシミュレーションは、Excelシート入出力に直接依存しないようにします。
+- Excel/VBAで扱いやすいインターフェースを優先します。
+- 秘密情報、顧客情報、社内専有データは含めません。
 
-This repository is for education, validation and prototyping only. Practical use requires separate checks for model validity, numerical accuracy, boundary conditions, auditability and data governance.
+## 注意事項
+
+このリポジトリは、教育・検証・プロトタイピングを目的としたものです。
+
+実務利用する場合は、モデル妥当性、数値精度、境界条件、監査対応、データ管理を別途確認する必要があります。
