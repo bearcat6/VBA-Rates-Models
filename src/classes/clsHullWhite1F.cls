@@ -131,25 +131,25 @@ Public Function A( _
   ByVal in_T As Double, _
   ByVal in_TerminalT As Double) As Double
 
-  Dim p0t As Double
-  Dim p0T As Double
+  Dim p0Start As Double
+  Dim p0Maturity As Double
   Dim bVal As Double
-  Dim f0t As Double
+  Dim f0Start As Double
   Dim varianceAdj As Double
   
   EnsureInitialized "A"
   ValidateTimeOrder in_T, in_TerminalT, "A"
   
-  p0t = DFByYears(in_T)
-  p0T = DFByYears(in_TerminalT)
+  p0Start = DFByYears(in_T)
+  p0Maturity = DFByYears(in_TerminalT)
   bVal = B(in_T, in_TerminalT)
-  f0t = InstantForward(in_T)
+  f0Start = InstantForward(in_T)
   
   varianceAdj = (mSigma * mSigma / (4# * mA)) _
               * (1# - Exp(-2# * mA * in_T)) _
               * bVal * bVal
   
-  A = (p0T / p0t) * Exp(bVal * f0t - varianceAdj)
+  A = (p0Maturity / p0Start) * Exp(bVal * f0Start - varianceAdj)
 
 End Function
 
