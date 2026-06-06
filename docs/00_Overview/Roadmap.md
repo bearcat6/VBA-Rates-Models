@@ -27,7 +27,8 @@ InstantaneousForward(T)
 
 ## フェーズ3：OISスワップ評価
 
-対象モジュール：`02_ois_swap`
+対象モジュール：`02_ois_swap`  
+設計ドキュメント：`docs/02_OIS_Swap/Design.md`
 
 - OISスワップの商品条件とキャッシュフロー生成を、カーブクラスの外に出します。
 - 固定脚PV、変動脚PV、NPV、パーレートを実装・検証します。
