@@ -14,36 +14,36 @@ Option Explicit
 '
 ' =============================================================================
 
-Public Function ZeroRateFromDF(ByVal df As Double, ByVal T As Double) As Double
+Public Function ZeroRateFromDF(ByVal in_df As Double, ByVal in_T As Double) As Double
 
-    If T <= 0# Then
+    If in_T <= 0# Then
         ZeroRateFromDF = 0#
         Exit Function
     End If
 
-    If df <= 0# Then
+    If in_df <= 0# Then
         Err.Raise vbObjectError + 5501, "mdl_CurveMath.ZeroRateFromDF", _
                   "Discount factor must be positive."
     End If
 
-    ZeroRateFromDF = -Log(df) / T
+    ZeroRateFromDF = -Log(in_df) / in_T
 
 End Function
 
 
-Public Function ForwardRateFromDFs(ByVal df1 As Double, ByVal df2 As Double, _
-                                   ByVal T1 As Double, ByVal T2 As Double) As Double
+Public Function ForwardRateFromDFs(ByVal in_df1 As Double, ByVal in_df2 As Double, _
+                                    ByVal in_T1 As Double, ByVal in_T2 As Double) As Double
 
-    If T2 <= T1 Then
+    If in_T2 <= in_T1 Then
         Err.Raise vbObjectError + 5502, "mdl_CurveMath.ForwardRateFromDFs", _
                   "T2 must be greater than T1."
     End If
 
-    If df1 <= 0# Or df2 <= 0# Then
+    If in_df1 <= 0# Or in_df2 <= 0# Then
         Err.Raise vbObjectError + 5503, "mdl_CurveMath.ForwardRateFromDFs", _
                   "Discount factors must be positive."
     End If
 
-    ForwardRateFromDFs = (df1 / df2 - 1#) / (T2 - T1)
+    ForwardRateFromDFs = (in_df1 / in_df2 - 1#) / (in_T2 - in_T1)
 
 End Function
