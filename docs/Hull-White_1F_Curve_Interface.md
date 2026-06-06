@@ -1,79 +1,86 @@
-# Hull-White 1F Curve Interface
+# Hull-White 1F カーブ・インターフェース
 
-## 1. Purpose
+## 1. 目的
 
-This document defines the curve interface required by the Hull-White 1F model implementation.
+本ドキュメントは、VBA-Rates-Models における Hull-White 1F モデル実装で必要となる、ディスカウントカーブ側のインターフェースを定義するものである。
 
-The repository already contains date-based OIS curve classes such as:
+本リポジトリには、すでに日付ベースの OIS カーブクラスが存在する。
 
-* `clsOISStepForwardCurve`
-* `clsOISZeroLinearCurve`
+- `clsOISStepForwardCurve`
+- `clsOISZeroLinearCurve`
 
-These classes mainly expose date-based methods such as:
+これらのカーブクラスは、主に以下のような日付ベースのメソッドを提供する。
 
 ```vb
 Public Function DF(ByVal in_TargetDate As Date) As Double
+
 Public Function ZeroRateCont(ByVal in_TargetDate As Date) As Double
+
 Public Function ForwardRate(ByVal in_StartDate As Date, _
                             ByVal in_EndDate As Date) As Double
 ```
 
-However, the Hull-White 1F model is naturally expressed on a time axis using year fractions such as `t` and `T`.
+一方、Hull-White 1F モデルは、評価日からの年数である `t` や `T` を使って自然に記述される。
 
-Therefore, each concrete curve class used by Hull-White should also expose a common time-based interface.
+そのため、Hull-White 1F モデルで利用する具体的なカーブクラスは、既存の日付ベースのメソッドに加えて、年数ベースの共通インターフェースも提供する必要がある。
 
-## 2. Background
+---
 
-The Hull-White 1F model is written as:
+## 2. 背景
+
+Hull-White 1F モデルは、一般に以下の形で表される。
 
 ```text
 dr(t) = { theta(t) - a r(t) } dt + sigma dW(t)
 ```
 
-For implementation, this repository uses the shifted short-rate representation:
+本リポジトリでは、実装上、以下の shifted short-rate representation を利用する。
 
 ```text
-r(t) = f(0,t) + x(t)
+r(t) = phi(t) + x(t)
 
 dx(t) = -a x(t) dt + sigma dW(t)
 ```
 
-In this setup:
+ここで、各要素の意味は以下のとおりである。
 
-* the discount curve reproduces the current market curve;
-* `a` controls mean reversion;
-* `sigma` controls short-rate volatility;
-* `theta(t)` is not stored directly as an input parameter;
-* the model requires access to the initial discount curve and initial instantaneous forward curve.
+- 初期ディスカウントカーブは、現在の市場カーブを再現する。
+- `a` は平均回帰速度を表す。
+- `sigma` は短期金利ファクターのボラティリティを表す。
+- `theta(t)` は直接の入力パラメータとして保持しない。
+- `phi(t)` は初期ディスカウントカーブと整合するように決まるシフト項である。
+- モデル計算では、初期ディスカウントファクターと初期瞬間フォワードレートが必要となる。
 
-Therefore, the Hull-White model should be able to call:
+したがって、Hull-White 1F モデルは、カーブの具体的な構築方法を知らなくても、以下のメソッドを呼び出せる必要がある。
 
 ```vb
 DF_T(T)
 InstantaneousForward(T)
 ```
 
-without knowing how the underlying curve was constructed.
+---
 
-## 3. Design Principle
+## 3. 設計方針
 
-The Hull-White implementation should not depend on a specific curve construction method.
+Hull-White 1F の実装は、特定のカーブ構築方法に依存させない。
 
-For example, the model should not know whether the curve is:
+例えば、モデル側は、利用するカーブが以下のどれであるかを意識しない。
 
-* a stepwise instantaneous forward curve;
-* a zero-rate linear interpolation curve;
-* or another curve type added later.
+- 瞬間フォワードレートを階段状に保持するカーブ
+- 連続複利ゼロレートを直線補間するカーブ
+- 将来追加される別方式のカーブ
 
-Instead, concrete curve classes should provide the same public time-based methods.
+代わりに、各具体カーブクラスが、同じ名前の年数ベース Public メソッドを提供する。
 
-The Hull-White classes can then receive the curve as `Object` and call same-name methods.
+Hull-White 関連クラスは、カーブを `Object` として受け取り、同名のメソッドを呼び出す。
 
-This is a practical design in VBA because VBA does not provide ordinary class inheritance in the same way as many object-oriented languages.
+これは、VBA が一般的なオブジェクト指向言語のようなクラス継承を持たないことを踏まえた、実務的な設計である。
 
-## 4. Required Time-Based Interface
+---
 
-Concrete curve classes used by Hull-White should implement the following public methods:
+## 4. 必要となる年数ベース・インターフェース
+
+Hull-White 1F で利用する具体カーブクラスは、以下の Public メソッドを実装する。
 
 ```vb
 Public Function YearFracFromValDate(ByVal targetDate As Date) As Double
@@ -91,244 +98,244 @@ Public Function InstantaneousForward(ByVal T As Double, _
                                      Optional ByVal eps As Double = 0.0001) As Double
 ```
 
-## 5. Method Details
+---
 
-### 5.1 YearFracFromValDate
+## 5. 各メソッドの仕様
+
+### 5.1 `YearFracFromValDate`
 
 ```vb
 Public Function YearFracFromValDate(ByVal targetDate As Date) As Double
 ```
 
-Returns the year fraction from the valuation date to `targetDate`.
+評価日から `targetDate` までの年数を返す。
 
-Current implementation policy:
+現時点の実装方針は以下のとおりとする。
 
 ```vb
 YearFracFromValDate = YearFracAct365F(mValuationDate, targetDate)
 ```
 
-Expected behavior:
+期待する挙動は以下のとおりである。
 
-* if `targetDate` is before the valuation date, raise an error;
-* if `targetDate` equals the valuation date, return `0`;
-* use the same day-count basis as the existing curve implementation.
+- `targetDate` が評価日より前の場合はエラーとする。
+- `targetDate` が評価日と同じ場合は `0` を返す。
+- 既存カーブ実装で利用している day count と整合させる。
 
-### 5.2 DateFromT
+---
+
+### 5.2 `DateFromT`
 
 ```vb
 Public Function DateFromT(ByVal T As Double) As Date
 ```
 
-Converts a year-fraction time `T` into a date.
+評価日からの年数 `T` を日付に変換する。
 
-Temporary implementation policy:
+初期実装では、以下の簡易実装を許容する。
 
 ```vb
 DateFromT = DateAdd("d", CLng(Round(T * 365#, 0)), mValuationDate)
 ```
 
-This is acceptable for the first Hull-White implementation step.
+これは Hull-White 1F の初期実装としては十分である。
 
-Future improvement:
+将来の改善候補は以下のとおりである。
 
-* align this conversion with the repository's day-count convention;
-* review consistency with `YearFracAct365F`;
-* consider whether business-day adjustment should be applied depending on the intended use.
+- `YearFracAct365F` との整合性を確認する。
+- day count convention と日付変換の一貫性を高める。
+- 利用目的に応じて、営業日調整を行うべきか検討する。
 
-Expected behavior:
+期待する挙動は以下のとおりである。
 
-* if `T < 0`, raise an error;
-* if `T = 0`, return the valuation date.
+- `T < 0` の場合はエラーとする。
+- `T = 0` の場合は評価日を返す。
 
-### 5.3 DF_T
+---
+
+### 5.3 `DF_T`
 
 ```vb
 Public Function DF_T(ByVal T As Double) As Double
 ```
 
-Returns the discount factor `P(0,T)`.
+評価日から年数 `T` 先のディスカウントファクター `P(0,T)` を返す。
 
-Implementation policy:
+実装方針は以下のとおりである。
 
 ```vb
 DF_T = Me.DF(DateFromT(T))
 ```
 
-or, for classes whose date-based method is named `df`:
+日付ベースの既存メソッド名が `df` のクラスでは、以下のように既存メソッドを呼び出す。
 
 ```vb
 DF_T = Me.df(DateFromT(T))
 ```
 
-Expected behavior:
+期待する挙動は以下のとおりである。
 
-* if `T < 0`, raise an error;
-* if `T = 0`, return `1`;
-* otherwise, convert `T` to a date and call the existing date-based discount factor method.
+- `T < 0` の場合はエラーとする。
+- `T = 0` の場合は `1` を返す。
+- それ以外の場合は、`T` を日付に変換し、既存の日付ベースのディスカウントファクター計算を呼び出す。
 
-### 5.4 ZeroRate_T
+---
+
+### 5.4 `ZeroRate_T`
 
 ```vb
 Public Function ZeroRate_T(ByVal T As Double) As Double
 ```
 
-Returns the continuously compounded zero rate:
+評価日から年数 `T` 先までの連続複利ゼロレートを返す。
 
 ```text
 z(0,T) = -ln(P(0,T)) / T
 ```
 
-Implementation policy:
+実装方針は以下のとおりである。
 
 ```vb
 ZeroRate_T = ZeroRateFromDF(DF_T(T), T)
 ```
 
-The common function `ZeroRateFromDF` is defined in `mdl_CurveMath.bas`.
+共通関数 `ZeroRateFromDF` は、`mdl_CurveMath.bas` に定義する。
 
-Expected behavior:
+期待する挙動は以下のとおりである。
 
-* if `T = 0`, return `0`;
-* if the discount factor is non-positive, raise an error through `mdl_CurveMath.ZeroRateFromDF`.
+- `T = 0` の場合は `0` を返す。
+- ディスカウントファクターが正でない場合は、`mdl_CurveMath.ZeroRateFromDF` 側でエラーとする。
 
-### 5.5 ForwardRate_T
+---
+
+### 5.5 `ForwardRate_T`
 
 ```vb
 Public Function ForwardRate_T(ByVal T1 As Double, _
                               ByVal T2 As Double) As Double
 ```
 
-Returns the simple forward rate between `T1` and `T2`:
+年数 `T1` から `T2` までの単利フォワードレートを返す。
 
 ```text
 F(0;T1,T2) = { P(0,T1) / P(0,T2) - 1 } / (T2 - T1)
 ```
 
-Implementation policy:
+実装方針は以下のとおりである。
 
 ```vb
 ForwardRate_T = ForwardRateFromDFs(DF_T(T1), DF_T(T2), T1, T2)
 ```
 
-The common function `ForwardRateFromDFs` is defined in `mdl_CurveMath.bas`.
+共通関数 `ForwardRateFromDFs` は、`mdl_CurveMath.bas` に定義する。
 
-Expected behavior:
+期待する挙動は以下のとおりである。
 
-* if `T2 <= T1`, raise an error;
-* if either discount factor is non-positive, raise an error through `mdl_CurveMath.ForwardRateFromDFs`.
+- `T2 <= T1` の場合はエラーとする。
+- いずれかのディスカウントファクターが正でない場合は、`mdl_CurveMath.ForwardRateFromDFs` 側でエラーとする。
 
-### 5.6 InstantaneousForward
+---
+
+### 5.6 `InstantaneousForward`
 
 ```vb
 Public Function InstantaneousForward(ByVal T As Double, _
                                      Optional ByVal eps As Double = 0.0001) As Double
 ```
 
-Returns the initial instantaneous forward rate:
+初期瞬間フォワードレートを返す。
 
 ```text
 f(0,T) = - d ln P(0,T) / dT
 ```
 
-Implementation policy:
+実装方針としては、`DF_T` を使った有限差分近似を利用する。
 
-Use a finite-difference approximation based on `DF_T`.
-
-For `T` close to zero, use a forward difference:
+`T` がゼロに近い場合は、前進差分を使う。
 
 ```text
 f(0,T) ≈ - { ln P(0,T+eps) - ln P(0,0) } / (T+eps)
 ```
 
-For normal positive `T`, use a central difference:
+通常の正の `T` では、中心差分を使う。
 
 ```text
 f(0,T) ≈ - { ln P(0,T+eps) - ln P(0,T-eps) } / (2 eps)
 ```
 
-Expected behavior:
+期待する挙動は以下のとおりである。
 
-* if `T < 0`, raise an error;
-* if `eps <= 0`, raise an error;
-* if either discount factor is non-positive, raise an error.
+- `T < 0` の場合はエラーとする。
+- `eps <= 0` の場合はエラーとする。
+- 計算に利用するディスカウントファクターが正でない場合はエラーとする。
 
-## 6. clsOISStepForwardCurve Implementation Policy
+---
 
-`clsOISStepForwardCurve` represents a curve where the instantaneous forward rate is stepwise constant by segment.
+## 6. `clsOISStepForwardCurve` での実装方針
 
-For this class:
+`clsOISStepForwardCurve` は、瞬間フォワードレートを区間ごとに階段状に保持するカーブである。
+
+このクラスでは、`DF_T(T)` は `T` を日付に変換し、既存の日付ベースのディスカウントファクター計算を呼び出す。
 
 ```vb
 DF_T(T)
 ```
 
-should convert `T` into a date and call the existing:
+は、以下の既存メソッドを利用する。
 
 ```vb
 df(Date)
 ```
 
-method.
-
-```vb
-ZeroRate_T(T)
-```
-
-should call:
+`ZeroRate_T(T)` は、以下を呼び出す。
 
 ```vb
 ZeroRateFromDF(DF_T(T), T)
 ```
 
-```vb
-ForwardRate_T(T1, T2)
-```
-
-should call:
+`ForwardRate_T(T1, T2)` は、以下を呼び出す。
 
 ```vb
 ForwardRateFromDFs(DF_T(T1), DF_T(T2), T1, T2)
 ```
 
-```vb
-InstantaneousForward(T)
-```
+`InstantaneousForward(T)` は、`DF_T` を使った有限差分で計算する。
 
-should be calculated by finite difference using `DF_T`.
+このカーブは瞬間フォワードレートを階段状に保持するため、`InstantaneousForward(T)` はセグメント境界付近で不連続に見える場合がある。
 
-Because this curve is based on stepwise forwards, `InstantaneousForward(T)` may show discontinuities around segment boundaries.
+これはエラーではなく、カーブ構築方法を反映した自然な挙動である。
 
-This is not an error. It reflects the curve construction method.
+---
 
-## 7. clsOISZeroLinearCurve Implementation Policy
+## 7. `clsOISZeroLinearCurve` での実装方針
 
-`clsOISZeroLinearCurve` represents a curve where continuously compounded zero rates are linearly interpolated against year fraction.
+`clsOISZeroLinearCurve` は、評価日からの年数に対して連続複利ゼロレートを直線補間するカーブである。
 
-For this class:
+このクラスでは、`DF_T(T)` は `T` を日付に変換し、既存の日付ベースのディスカウントファクター計算を呼び出す。
 
 ```vb
 DF_T(T)
 ```
 
-should convert `T` into a date and call the existing:
+は、以下の既存メソッドを利用する。
 
 ```vb
 DF(Date)
 ```
 
-method.
+その他のメソッドは、`clsOISStepForwardCurve` と同じ年数ベース・インターフェースに従う。
 
-Other methods should follow the same interface as `clsOISStepForwardCurve`.
+ただし、`InstantaneousForward(T)` の形状は、`clsOISStepForwardCurve` と異なる可能性がある。
 
-The shape of `InstantaneousForward(T)` will generally differ from `clsOISStepForwardCurve`.
+これは、ゼロレート直線補間カーブと、瞬間フォワード階段状カーブでは、暗黙に含まれる瞬間フォワードカーブの形状が異なるためである。
 
-This is natural because a zero-linear interpolation curve and a step-forward curve imply different instantaneous forward curves.
+---
 
-## 8. Relationship with clsDiscountCurve
+## 8. `clsDiscountCurve` との関係
 
-`clsDiscountCurve` is currently used as a date-based interface through `Implements`.
+`clsDiscountCurve` は、現時点では `Implements` を使う日付ベースのインターフェースとして利用する。
 
-It defines:
+`clsDiscountCurve` が定義する主なメソッドは以下である。
 
 ```vb
 Public Function DF(ByVal in_TargetDate As Date) As Double
@@ -339,36 +346,38 @@ Public Function ForwardRate(ByVal in_StartDate As Date, _
                             ByVal in_EndDate As Date) As Double
 ```
 
-The Hull-White time-based methods do not need to be added to `clsDiscountCurve` at this stage.
+Hull-White 1F 用の年数ベースメソッドは、現時点では `clsDiscountCurve` に追加しない。
 
-Reason:
+理由は以下のとおりである。
 
-* adding these methods to `clsDiscountCurve` would require all implementing classes to define corresponding private interface methods;
-* the Hull-White model can instead receive the curve as `Object`;
-* the required methods can be treated as a convention-based public interface.
+- `clsDiscountCurve` に年数ベースメソッドを追加すると、`Implements` しているすべてのクラスで対応する private interface method を実装する必要がある。
+- Hull-White 1F モデル側は、カーブを `Object` として受け取ればよい。
+- 必要な年数ベースメソッドは、共通の命名規約に基づく convention-based interface として扱える。
 
-Therefore, `clsDiscountCurve` remains the date-based interface.
+したがって、`clsDiscountCurve` は既存の日付ベース・インターフェースのままとする。
 
-The Hull-White curve interface is documented here as a convention-based interface.
+Hull-White 1F 用のカーブ・インターフェースは、本ドキュメントで定義する convention-based interface とする。
 
-## 9. Use from Hull-White Classes
+---
 
-Hull-White classes should receive a curve object such as:
+## 9. Hull-White 関連クラスからの利用方法
+
+Hull-White 関連クラスでは、カーブオブジェクトを以下のように `Object` として保持する。
 
 ```vb
 Private mCurve As Object
 ```
 
-and call:
+そして、以下のような年数ベースメソッドを呼び出す。
 
 ```vb
 mCurve.DF_T(T)
 mCurve.InstantaneousForward(T)
 ```
 
-This keeps the Hull-White implementation independent from the concrete curve construction method.
+これにより、Hull-White 1F の実装は、具体的なカーブ構築方法から独立する。
 
-Example:
+初期化メソッドの例は以下のとおりである。
 
 ```vb
 Public Sub Init(ByVal in_Curve As Object, _
@@ -382,36 +391,50 @@ Public Sub Init(ByVal in_Curve As Object, _
 End Sub
 ```
 
-## 10. Separation of Responsibilities
+---
 
-Hull-White model classes should not read Excel sheets directly.
+## 10. 責務分離
 
-Recommended responsibility split:
+Hull-White 1F のモデルクラスは、Excel シートを直接読み込まない。
 
-* curve classes
-  provide discount factors, zero rates, forward rates, and instantaneous forwards;
+推奨する責務分離は以下のとおりである。
 
-* `mdl_CurveMath.bas`
-  provides common curve-related mathematical functions;
+- カーブクラス  
+  ディスカウントファクター、ゼロレート、フォワードレート、瞬間フォワードレートを返す。
 
-* `clsHullWhite1F`
-  holds Hull-White model parameters and model formula logic;
+- `mdl_CurveMath.bas`  
+  カーブ関連の共通数理関数を提供する。
 
-* `clsHWCalibrator`
-  calibrates `a` and `sigma` from volatility data;
+- `clsHullWhite1F`  
+  Hull-White 1F のパラメータとモデル数式を保持する。
 
-* `clsHWSimulator`
-  generates Monte Carlo paths and future yield curves;
+- `clsHWCalibrator`  
+  ボラティリティデータから `a` と `sigma` をキャリブレーションする。初期実装では、`a` を外部固定し、`sigma` を推定する。
 
-* `modExcelIO`
-  reads inputs from Excel and writes outputs to Excel;
+- `clsHWSimulator`  
+  Monte Carlo path と将来金利カーブを生成する。
 
-* `modHWWorkflow`
-  orchestrates the workflow from Excel/VBA.
+- `clsRandomNormal`  
+  Monte Carlo simulation で利用する標準正規乱数を生成する。
 
-## 11. Current Status
+- `clsVolSurface`  
+  Hull-White 1F のキャリブレーション等で利用するボラティリティ・サーフェスを保持する。
 
-Implemented or planned components:
+- `mdl_HullWhiteMath.bas`  
+  Hull-White 1F に関する共通数理関数を提供する。
+
+- `mdl_HullWhiteWorkFlow.bas`  
+  Excel/VBA から、ボラティリティサーフェス作成、キャリブレーション、シミュレーション、出力までの全体処理をつなぐ。
+
+Excel 入出力専用の処理を追加する場合は、将来的に `mdl_ExcelIO.bas` のような標準モジュールへ分離する。
+
+診断・検証用の処理を追加する場合は、将来的に `mdl_Diagnostics.bas` のような標準モジュールへ分離する。
+
+---
+
+## 11. 現在の構成
+
+現時点で実装済み、または本設計で想定する主要コンポーネントは以下のとおりである。
 
 ```text
 src/
@@ -427,16 +450,45 @@ src/
 
   modules/
     mdl_CurveMath.bas
-    modHWMath.bas
-    modHWWorkflow.bas
-    modExcelIO.bas
-    modDiagnostics.bas
+    mdl_HullWhiteMath.bas
+    mdl_HullWhiteWorkFlow.bas
 ```
 
-Current implementation step:
+将来的に必要に応じて、以下を追加する。
 
-1. keep `mdl_CurveMath.bas` as the common utility module;
-2. add the time-based interface to `clsOISStepForwardCurve`;
-3. add the same time-based interface to `clsOISZeroLinearCurve`;
-4. keep `clsDiscountCurve` as the existing date-based interface;
-5. implement `clsHullWhite1F` using the time-based curve interface.
+```text
+src/
+  modules/
+    mdl_ExcelIO.bas
+    mdl_Diagnostics.bas
+```
+
+---
+
+## 12. 現在の実装ステップ
+
+現在の実装ステップは以下のとおりである。
+
+1. `mdl_CurveMath.bas` をカーブ共通数理モジュールとして維持する。
+2. `clsOISStepForwardCurve` に年数ベース・インターフェースを追加する。
+3. `clsOISZeroLinearCurve` に同じ年数ベース・インターフェースを追加する。
+4. `clsDiscountCurve` は既存の日付ベース・インターフェースのままとする。
+5. `clsHullWhite1F` は、年数ベース・カーブ・インターフェースを利用して実装する。
+6. `clsHWCalibrator` は、`clsVolSurface` とカーブオブジェクトを利用して、初期実装では `a` 固定・`sigma` 推定を行う。
+7. `clsHWSimulator` は、キャリブレーション済みの `a` と `sigma` を使い、将来時点の金利カーブを Monte Carlo simulation で生成する。
+
+---
+
+## 13. 注意点
+
+本インターフェースは、Hull-White 1F のモデル実装を特定のカーブ構築方法から分離するためのものである。
+
+そのため、各カーブクラスは、日付ベースの既存メソッドを維持しつつ、Hull-White 1F で必要となる年数ベースメソッドを追加する。
+
+また、`InstantaneousForward(T)` は有限差分で近似するため、補間方法やカーブ構築方法によって滑らかさが異なる。
+
+特に、`clsOISStepForwardCurve` のように瞬間フォワードを階段状に保持するカーブでは、セグメント境界付近で不連続が生じることがある。
+
+これは実装エラーではなく、カーブ構築方法の性質である。
+
+Hull-White 1F の厳密な市場整合性や swaption pricing の高度化は、今後の拡張課題とする。
