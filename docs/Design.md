@@ -6,7 +6,7 @@
 
 当面の目的は、JPY TONA/OIS ベースのディスカウントカーブを構築し、将来的に TONA 変動金利にキャップが付いた商品の評価や、キャップボラティリティ期間構造の構築へ拡張できる設計とすることである。
 
-設計上の詳細な前提は、`docs/assumptions.md` に従う。
+設計上の詳細な前提は、`docs/Assumptions.md` に従う。
 
 ---
 
@@ -17,8 +17,8 @@
 ```text
 VBA-Rates-Models
 ├─ docs
-│  ├─ assumptions.md
-│  └─ design.md
+│  ├─ Assumptions.md
+│  └─ Design.md
 ├─ src
 │  ├─ classes
 │  │  ├─ clsHolidayCalendar.cls
@@ -395,7 +395,7 @@ Vol(in_ExpiryYears, in_TenorText) As Double
 VolByYears(in_ExpiryYears, in_TenorYears) As Double
 ExpiryAt(in_Index) As Double
 TenorAt(in_Index) As Double
-GridVol(in_ExpiryIndex, in_TenorIndex) As Double
+GridVol(in_ExpiryIndex) As Double
 ```
 
 ### mdl_SwaptionVol
