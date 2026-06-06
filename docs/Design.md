@@ -15,6 +15,7 @@
 | `docs/03_SABR/Design.md` | Normal SABR設計 |
 | `docs/04_Hull-White_1F/Design.md` | Hull-White 1F設計 |
 | `docs/05_CMS-Spread/Design.md` | CMSスプレッド評価設計 |
+| `docs/06_RandomNumber/README.md` | 乱数生成設計 |
 
 ## 設計方針
 
@@ -27,6 +28,7 @@ common
 03_sabr
 04_hull_white_1f
 05_cms_spread
+06_RandomNumber
 ```
 
 従来の `src/classes` と `src/modules` に横並びで置く構成から、`docs/00_Overview/Module_Map.md` に記載した目的別構成へ移行します。
@@ -52,3 +54,5 @@ common + 01_discount_curve + 03_sabr
 逆方向の依存は避けます。
 
 また、割引カーブ構築クラスに商品評価ロジックを過度に混ぜない方針とします。
+
+乱数生成は、特定の商品評価や金利モデルに閉じず、モンテカルロシミュレーションで共通利用する部品として整理します。
