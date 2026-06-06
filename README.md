@@ -10,7 +10,7 @@ VBAクラスを単純に横並びで管理するのではなく、目的別に�
 
 | 領域 | 目的 | 状況 |
 |---|---|---|
-| `01_discount_curve` | JPY TONA/OIS の基本的な割引カーブ構築 | 対応中 |
+| `01_Discount_Curve` | JPY TONA/OIS の基本的な割引カーブ構築 | 対応中 |
 | `02_ois_swap` | OISスワップのキャッシュフロー生成と評価 | 対応中・拡張中 |
 | `03_sabr` | Normal SABR のスマイル、密度、分位点計算 | 計画中・拡張中 |
 | `04_hull_white_1f` | Hull-White 1F のキャリブレーションと将来カーブシミュレーション | 対応中 |
@@ -24,7 +24,7 @@ VBA-Rates-Models/
 │  ├─ 00_Overview/
 │  │  ├─ Module_Map.md
 │  │  └─ Roadmap.md
-│  ├─ 01_discount_curve/
+│  ├─ 01_Discount_Curve/
 │  │  └─ Design.md
 │  ├─ 02_ois_swap/
 │  │  └─ Design.md
