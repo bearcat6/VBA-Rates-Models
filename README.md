@@ -1,118 +1,87 @@
 # VBA Rates Models
 
-JPY金利分析をExcel/VBAで試作するためのリポジトリです。
+JPY rates analytics prototypes implemented in Excel/VBA.
 
-主な対象は、TONA/OISベースのディスカウントカーブ構築、キャップ・ボラティリティのブートストラップ、ATMスワップション・ボラティリティの補間、CMS関連評価ユーティリティ、および1ファクター Hull-White モデルによる将来金利カーブのシミュレーションです。
+This repository is organized as a modular VBA library for building JPY OIS discount curves, valuing OIS swaps, fitting SABR smiles, calibrating and simulating a 1-factor Hull-White model, and extending toward CMS spread valuation.
 
-## 目的
+## Scope
 
-このリポジトリの目的は、JPY OISカーブと金利ボラティリティを入力として、金利モデル・評価ロジック・リスク分析用のプロトタイプをVBAで実装することです。
+The repository is managed by purpose rather than by a flat list of VBA classes.
 
-特に、Hull-White 1Fモデルについては、以下を目標とします。
+| Area | Purpose | Status |
+|---|---|---|
+| `01_discount_curve` | Basic JPY TONA/OIS discount curve construction | Active |
+| `02_ois_swap` | OIS swap cashflow and valuation logic | Active / expanding |
+| `03_sabr` | Normal SABR smile, density and quantile logic | Planned / expanding |
+| `04_hull_white_1f` | Hull-White 1F calibration and Monte Carlo curve simulation | Active |
+| `05_cms_spread` | CMS spread valuation; currently mainly swaption volatility handling | Planned / partial |
 
-- ディスカウントカーブとスワップション・ボラティリティからモデルパラメータを推定する
-- 1年後などの将来時点における金利カーブをモンテカルロ・シミュレーションする
-- シミュレーション結果から分位点カーブを作成する
-- リスク管理で利用するストレスカーブを作成する
-
-## 主な機能
-
-### OISカーブ
-
-- JPY TONA/OISベースのディスカウントカーブ構築
-- Step forward型のOISカーブ
-- Zero rate linear interpolation型のOISカーブ
-- ディスカウントファクター、ゼロレート、フォワードレートの計算
-
-### ボラティリティ関連
-
-- キャップ・ボラティリティのブートストラップ
-- ATMスワップション・ボラティリティ行列の保持と補間
-- Hull-White 1Fキャリブレーション用の汎用ボラティリティ・サーフェス
-- Normal Volを中心とした初期実装
-
-### Hull-White 1F
-
-- 1ファクター Hull-White モデル本体
-- 平均回帰パラメータ `a` とボラティリティ `sigma` の管理
-- 初期実装では、`a` を外部から固定値として与え、`sigma` をATM normal swaption volatilityへフィットする
-- shifted short-rate representation による実装
-- 将来金利カーブのモンテカルロ・シミュレーション
-- 分位点カーブ・ストレスカーブ作成に向けた出力
-
-### CMS関連
-
-- CMS convexity adjustment などで利用するATMスワップション・ボラティリティ参照
-- CMS spread swap等への拡張を意識した設計
-
-## ディレクトリ構成
+## Target Repository Structure
 
 ```text
-VBA-Rates-Models
-├─ docs
-│  ├─ Assumptions.md
-│  ├─ Design.md
-│  └─ Hull-White_1F_Curve_Interface.md
-├─ src
-│  ├─ classes
-│  │  ├─ clsDiscountCurve.cls
-│  │  ├─ clsOISStepForwardCurve.cls
-│  │  ├─ clsOISZeroLinearCurve.cls
-│  │  ├─ clsATMSwaptionVol.cls
-│  │  ├─ clsVolSurface.cls
-│  │  ├─ clsHullWhite1F.cls
-│  │  ├─ clsHWCalibrator.cls
-│  │  ├─ clsHWSimulator.cls
-│  │  └─ clsRandomNormal.cls
-│  └─ modules
-│     ├─ mdl_CurveMath.bas
-│     ├─ mdl_HullWhiteMath.bas
-│     └─ mdl_HullWhiteWorkFlow.bas
+VBA-Rates-Models/
+├─ docs/
+│  ├─ 00_overview/
+│  │  ├─ Module_Map.md
+│  │  └─ Roadmap.md
+│  ├─ 01_discount_curve/
+│  │  └─ Design.md
+│  ├─ 02_ois_swap/
+│  │  └─ Design.md
+│  ├─ 03_sabr/
+│  │  └─ Design.md
+│  ├─ 04_hull_white_1f/
+│  │  └─ Design.md
+│  └─ 05_cms_spread/
+│     └─ Design.md
+├─ src/
+│  ├─ common/
+│  ├─ 01_discount_curve/
+│  ├─ 02_ois_swap/
+│  ├─ 03_sabr/
+│  ├─ 04_hull_white_1f/
+│  └─ 05_cms_spread/
+├─ examples/
+├─ tests/
 └─ README.md
 ```
 
-実際の実装ファイルは今後も追加・整理される可能性があります。詳細な設計方針は `docs/Design.md`、実装前提は `docs/Assumptions.md` を参照してください。
+## Dependency Direction
 
-## クラス名に関する補足
-
-`src/classes/clsATMSwaptionVol.cls` は、ATMスワップション・ボラティリティ行列を保持し、任意の Expiry × Tenor に対するATMボラティリティを返すクラスです。
-
-このクラス名は、将来的に非ATMのスワップション・ボラティリティ・サーフェスやスマイルモデルを追加する可能性を踏まえ、あえてATM専用であることが分かる名前にしています。
-
-一方、`src/classes/clsVolSurface.cls` は、Hull-White 1Fなどのモデル入力に利用する、より汎用的なボラティリティ・サーフェスとして位置づけます。
-
-## Hull-White 1Fの実装方針
-
-Hull-White 1Fでは、以下のモデルを対象とします。
+The intended dependency direction is one-way.
 
 ```text
-dr(t) = { theta(t) - a r(t) } dt + sigma dW(t)
+common
+  ↓
+01_discount_curve
+  ↓
+02_ois_swap
+
+common + 01_discount_curve
+  ↓
+04_hull_white_1f
+
+common + 01_discount_curve + 03_sabr
+  ↓
+05_cms_spread
 ```
 
-実装上は、以下の shifted short-rate representation を利用します。
+`03_sabr` is kept independent from CMS because the same smile, density and quantile logic can also be used for risk analysis and stress scenario construction.
 
-```text
-r(t) = phi(t) + x(t)
+## Current Migration Policy
 
-dx(t) = -a x(t) dt + sigma dW(t)
-```
+Existing VBA files are retained until they are safely moved with their full contents preserved. The final module structure and documentation are prepared first so that future class/module moves can be done mechanically and reviewed one file at a time.
 
-`theta(t)` は直接入力パラメータとして扱わず、初期ディスカウントカーブと整合するように扱います。
+See `docs/00_overview/Module_Map.md` for the migration map from the old flat structure to the new purpose-based structure.
 
-Hull-White関連クラスは、カーブオブジェクトに対して、評価日からの年数 `T` を引数とする以下のような time-based interface を要求します。
+## Design Principles
 
-```vb
-DF_T(T)
-InstantaneousForward(T)
-```
+- Keep common utilities separate from product and model logic.
+- Keep discount curve construction independent from trade valuation.
+- Keep model calibration and simulation independent from Excel sheet I/O.
+- Use Excel/VBA-friendly interfaces rather than excessive abstraction.
+- Avoid proprietary, customer, or confidential data.
 
-この方針により、Hull-Whiteモデル本体は、OISカーブの具体的な構築方法に依存しない設計とします。
+## Disclaimer
 
-## 注意事項
-
-このリポジトリは、教育・検証・プロトタイピングを目的としたものです。
-
-- サンプルデータは架空データを使用します
-- 秘密情報・顧客情報・社内専有データは含めません
-- 実務利用する場合は、モデル妥当性、数値精度、境界条件、監査対応、データ管理を別途確認する必要があります
-- 初期のHull-White 1Fキャリブレーションは簡易実装であり、厳密なスワップション評価モデルは今後の拡張対象です
+This repository is for education, validation and prototyping only. Practical use requires separate checks for model validity, numerical accuracy, boundary conditions, auditability and data governance.
