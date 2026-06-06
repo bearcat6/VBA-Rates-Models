@@ -465,14 +465,14 @@ Public Function InstantaneousForward(ByVal T As Double, _
   CheckInitialized
 
   If T < 0# Then
-    Err.Raise vbObjectError + 3034, _
-      "clsOISStepForwardCurve.InstantaneousForward", _
+    Err.Raise vbObjectError + 4034, _
+      "clsOISZeroLinearCurve.InstantaneousForward", _
       "T は0以上にしてください。"
   End If
 
   If eps <= 0# Then
-    Err.Raise vbObjectError + 3035, _
-      "clsOISStepForwardCurve.InstantaneousForward", _
+    Err.Raise vbObjectError + 4035, _
+      "clsOISZeroLinearCurve.InstantaneousForward", _
       "eps は正の値にしてください。"
   End If
 
@@ -491,18 +491,19 @@ Public Function InstantaneousForward(ByVal T As Double, _
   tLowActual = YearFracFromValDate(dateLow)
   tHighActual = YearFracFromValDate(dateHigh)
 
-  dfLow = Me.df(dateLow)
-  dfHigh = Me.df(dateHigh)
+  dfLow = Me.DF(dateLow)
+  dfHigh = Me.DF(dateHigh)
 
   If dfLow <= 0# Or dfHigh <= 0# Then
-    Err.Raise vbObjectError + 3036, _
-      "clsOISStepForwardCurve.InstantaneousForward", _
+    Err.Raise vbObjectError + 4036, _
+      "clsOISZeroLinearCurve.InstantaneousForward", _
       "Discount factor must be positive."
   End If
 
   InstantaneousForward = -(Log(dfHigh) - Log(dfLow)) / (tHighActual - tLowActual)
 
 End Function
+
 '============================================================
 ' ゼロレート点表を返す
 '============================================================
