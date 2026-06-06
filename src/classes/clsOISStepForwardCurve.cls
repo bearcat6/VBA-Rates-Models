@@ -1,3 +1,4 @@
+
 Option Explicit
 
 Implements clsDiscountCurve
@@ -29,6 +30,7 @@ Implements clsDiscountCurve
 '   ・clsHolidayCalendar
 '   ・clsOISSwap
 '   ・mdl_BusinessDay
+'   ・mdl_CurveMath
 '============================================================
 
 Private mValuationDate As Date
@@ -272,6 +274,127 @@ Public Function ForwardRate(ByVal in_StartDate As Date, _
 
 End Function
 
+'============================================================
+' Hull-White time-based curve interface
+'
+' Hull-White 1F は t, T の年数ベースで計算するため、
+' Date ベースの DF / ZeroRateCont / ForwardRate を薄くラップする。
+'
+' 注意：
+'   ・この time-based interface は clsDiscountCurve Implements の対象ではない。
+'   ・clsHullWhite1F 等から Object として受け取り、同名 Public メソッドを呼ぶ前提。
+'   ・DateFromT は暫定的に T * 365 日で変換する。
+'     将来的には DayCount / HolidayCalendar / BusinessDayConvention と整合させる。
+'============================================================
+
+Public Function YearFracFromValDate(ByVal targetDate As Date) As Double
+
+  CheckInitialized
+
+  targetDate = DateValue(targetDate)
+
+  If targetDate < mValuationDate Then
+    Err.Raise vbObjectError + 3031, _
+      "clsOISStepForwardCurve.YearFracFromValDate", _
+      "targetDate は評価日以降の日付にしてください。"
+  End If
+
+  YearFracFromValDate = YearFracAct365F(mValuationDate, targetDate)
+
+End Function
+
+Public Function DateFromT(ByVal T As Double) As Date
+
+  CheckInitialized
+
+  If T < 0# Then
+    Err.Raise vbObjectError + 3032, _
+      "clsOISStepForwardCurve.DateFromT", _
+      "T は0以上にしてください。"
+  End If
+
+  DateFromT = DateAdd("d", CLng(Round(T * 365#, 0)), mValuationDate)
+
+End Function
+
+Public Function DF_T(ByVal T As Double) As Double
+
+  CheckInitialized
+
+  If T < 0# Then
+    Err.Raise vbObjectError + 3033, _
+      "clsOISStepForwardCurve.DF_T", _
+      "T は0以上にしてください。"
+  End If
+
+  If T = 0# Then
+    DF_T = 1#
+    Exit Function
+  End If
+
+  DF_T = Me.df(DateFromT(T))
+
+End Function
+
+Public Function ZeroRate_T(ByVal T As Double) As Double
+
+  CheckInitialized
+
+  ZeroRate_T = ZeroRateFromDF(DF_T(T), T)
+
+End Function
+
+Public Function ForwardRate_T(ByVal T1 As Double, _
+                              ByVal T2 As Double) As Double
+
+  CheckInitialized
+
+  ForwardRate_T = ForwardRateFromDFs(DF_T(T1), DF_T(T2), T1, T2)
+
+End Function
+
+Public Function InstantaneousForward(ByVal T As Double, _
+                                     Optional ByVal eps As Double = 0.0001) As Double
+
+  Dim tLow As Double
+  Dim tHigh As Double
+  Dim dfLow As Double
+  Dim dfHigh As Double
+
+  CheckInitialized
+
+  If T < 0# Then
+    Err.Raise vbObjectError + 3034, _
+      "clsOISStepForwardCurve.InstantaneousForward", _
+      "T は0以上にしてください。"
+  End If
+
+  If eps <= 0# Then
+    Err.Raise vbObjectError + 3035, _
+      "clsOISStepForwardCurve.InstantaneousForward", _
+      "eps は正の値にしてください。"
+  End If
+
+  If T <= eps Then
+    tLow = 0#
+    tHigh = T + eps
+  Else
+    tLow = T - eps
+    tHigh = T + eps
+  End If
+
+  dfLow = DF_T(tLow)
+  dfHigh = DF_T(tHigh)
+
+  If dfLow <= 0# Or dfHigh <= 0# Then
+    Err.Raise vbObjectError + 3036, _
+      "clsOISStepForwardCurve.InstantaneousForward", _
+      "Discount factor must be positive."
+  End If
+
+  InstantaneousForward = -(Log(dfHigh) - Log(dfLow)) / (tHigh - tLow)
+
+End Function
 
 '============================================================
 ' Forward Par Rate
@@ -321,7 +444,6 @@ Public Function ForwardParRate(ByVal in_Expiry As String, _
   ForwardParRate = ForwardParRateByDates(startDate, endDate)
 
 End Function
-
 
 '============================================================
 ' Forward Par Rate（日付指定版）
@@ -388,7 +510,6 @@ Public Function ForwardParRateByDates(ByVal in_StartDate As Date, _
   ForwardParRateByDates = floatingLegPV / annuity
 
 End Function
-
 
 '============================================================
 ' Quote配列からカーブを構築
@@ -1222,7 +1343,6 @@ Private Function SimpleRateToContinuousForward(ByVal in_simpleRate As Double, _
 
 End Function
 
-
 '============================================================
 ' 内部処理：Max Date
 '============================================================
@@ -1284,5 +1404,3 @@ Private Function clsDiscountCurve_ForwardRate(ByVal in_StartDate As Date, _
   clsDiscountCurve_ForwardRate = Me.ForwardRate(in_StartDate, in_EndDate)
 
 End Function
-
-
