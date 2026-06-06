@@ -406,11 +406,11 @@ TenorAt(in_Index) As Double
 GridVol(in_ExpiryIndex) As Double
 ```
 
-### mdl_SwaptionVol
+### mdl_ATMSwaptionVol
 
 #### 役割
 
-clsSwaptionVol を利用するための補助関数およびExcel関数ラッパーを提供する。
+clsATMSwaptionVol を利用するための補助関数およびExcel関数ラッパーを提供する。
 
 #### 主な関数
 
