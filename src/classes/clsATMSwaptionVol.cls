@@ -1,8 +1,7 @@
-
 Option Explicit
 
 '====================================================
-' clsSwaptionVol
+' clsATMSwaptionVol
 '
 ' ATM Swaption Volatility Matrix を保持し、
 ' 任意の Expiry × Tenor の ATM Vol を返すクラス。
@@ -53,12 +52,12 @@ Public Sub InitializeFromRange( _
   Dim j As Long
   
   If in_MatrixRange Is Nothing Then
-    Err.Raise vbObjectError + 1000, "clsSwaptionVol.InitializeFromRange", _
+    Err.Raise vbObjectError + 1000, "clsATMSwaptionVol.InitializeFromRange", _
           "matrixRange is Nothing."
   End If
   
   If in_MatrixRange.Rows.Count < 2 Or in_MatrixRange.Columns.Count < 2 Then
-    Err.Raise vbObjectError + 1001, "clsSwaptionVol.InitializeFromRange", _
+    Err.Raise vbObjectError + 1001, "clsATMSwaptionVol.InitializeFromRange", _
           "Vol matrix range is too small."
   End If
   
@@ -71,18 +70,10 @@ Public Sub InitializeFromRange( _
   
   mAllowFlatExtrapolation = in_AllowFlatExtrapolation
   
-  '----------------------------------------
-  ' Tenor headers
-  ' 1行目、2列目以降
-  '----------------------------------------
   For j = 1 To mNumTenors
     mTenors(j) = SwaptionTenorToYears(CStr(in_MatrixRange.Cells(1, j + 1).Value))
   Next j
   
-  '----------------------------------------
-  ' Expiry headers and Vol matrix
-  ' 1列目、2行目以降
-  '----------------------------------------
   For i = 1 To mNumExpiries
   
     mExpiries(i) = SwaptionTenorToYears(CStr(in_MatrixRange.Cells(i + 1, 1).Value))
@@ -90,19 +81,19 @@ Public Sub InitializeFromRange( _
     For j = 1 To mNumTenors
       
       If IsEmpty(in_MatrixRange.Cells(i + 1, j + 1).Value) Then
-        Err.Raise vbObjectError + 1002, "clsSwaptionVol.InitializeFromRange", _
+        Err.Raise vbObjectError + 1002, "clsATMSwaptionVol.InitializeFromRange", _
               "Vol matrix contains empty cell."
       End If
       
       If Not IsNumeric(in_MatrixRange.Cells(i + 1, j + 1).Value) Then
-        Err.Raise vbObjectError + 1003, "clsSwaptionVol.InitializeFromRange", _
+        Err.Raise vbObjectError + 1003, "clsATMSwaptionVol.InitializeFromRange", _
               "Vol matrix contains non-numeric value."
       End If
       
       mVols(i, j) = CDbl(in_MatrixRange.Cells(i + 1, j + 1).Value)
       
       If mVols(i, j) < 0 Then
-        Err.Raise vbObjectError + 1004, "clsSwaptionVol.InitializeFromRange", _
+        Err.Raise vbObjectError + 1004, "clsATMSwaptionVol.InitializeFromRange", _
               "Volatility must be non-negative."
       End If
       
@@ -118,14 +109,6 @@ End Sub
 
 '====================================================
 ' Main function
-'
-' in_ExpiryYears:
-'   オプション期間。年数で指定する。
-'   例：0.5, 1, 1.5
-'
-' in_TenorText:
-'   原資産スワップ期間。文字列で指定する。
-'   例："10Y", "20Y", "18M"
 '====================================================
 Public Function Vol( _
   ByVal in_ExpiryYears As Double, _
@@ -141,14 +124,6 @@ End Function
 
 '====================================================
 ' 年数指定でVolを取得
-'
-' in_ExpiryYears:
-'   オプション期間。年数で指定する。
-'   例：0.5, 1, 1.5
-'
-' in_TenorYears:
-'   原資産スワップ期間。年数で指定する。
-'   例：1, 5, 10, 20
 '====================================================
 Public Function VolByYears( _
   ByVal in_ExpiryYears As Double, _
@@ -174,17 +149,17 @@ Public Function VolByYears( _
   Dim totalVariance As Double
   
   If Not mIsInitialized Then
-    Err.Raise vbObjectError + 1100, "clsSwaptionVol.VolByYears", _
-          "Swaption vol surface is not initialized."
+    Err.Raise vbObjectError + 1100, "clsATMSwaptionVol.VolByYears", _
+          "ATM swaption vol surface is not initialized."
   End If
   
   If in_ExpiryYears <= 0 Then
-    Err.Raise vbObjectError + 1101, "clsSwaptionVol.VolByYears", _
+    Err.Raise vbObjectError + 1101, "clsATMSwaptionVol.VolByYears", _
           "Expiry must be positive."
   End If
   
   If in_TenorYears <= 0 Then
-    Err.Raise vbObjectError + 1102, "clsSwaptionVol.VolByYears", _
+    Err.Raise vbObjectError + 1102, "clsATMSwaptionVol.VolByYears", _
           "Tenor must be positive."
   End If
   
@@ -201,17 +176,9 @@ Public Function VolByYears( _
   v21 = mVols(iHigh, jLow)
   v22 = mVols(iHigh, jHigh)
   
-  '----------------------------------------
-  ' 1. Tenor方向の補間
-  '    同一Expiry上で variance = vol^2 を線形補間
-  '----------------------------------------
   varAtLowExpiry = InterpVariance(in_TenorYears, t1, t2, v11, v12)
   varAtHighExpiry = InterpVariance(in_TenorYears, t1, t2, v21, v22)
   
-  '----------------------------------------
-  ' 2. Expiry方向の補間
-  '    total variance = variance × expiry を線形補間
-  '----------------------------------------
   totalVariance = InterpTotalVariance( _
             in_ExpiryYears, _
             e1, _
@@ -219,11 +186,8 @@ Public Function VolByYears( _
             varAtLowExpiry, _
             varAtHighExpiry)
   
-  '----------------------------------------
-  ' 3. Volに戻す
-  '----------------------------------------
   If totalVariance < 0 Then
-    Err.Raise vbObjectError + 1103, "clsSwaptionVol.VolByYears", _
+    Err.Raise vbObjectError + 1103, "clsATMSwaptionVol.VolByYears", _
           "Interpolated total variance is negative."
   End If
   
@@ -258,12 +222,12 @@ End Property
 Public Function ExpiryAt(ByVal in_Index As Long) As Double
 
   If Not mIsInitialized Then
-    Err.Raise vbObjectError + 1200, "clsSwaptionVol.ExpiryAt", _
-          "Swaption vol surface is not initialized."
+    Err.Raise vbObjectError + 1200, "clsATMSwaptionVol.ExpiryAt", _
+          "ATM swaption vol surface is not initialized."
   End If
   
   If in_Index < 1 Or in_Index > mNumExpiries Then
-    Err.Raise vbObjectError + 1201, "clsSwaptionVol.ExpiryAt", _
+    Err.Raise vbObjectError + 1201, "clsATMSwaptionVol.ExpiryAt", _
           "Expiry index is out of range."
   End If
   
@@ -277,12 +241,12 @@ End Function
 Public Function TenorAt(ByVal in_Index As Long) As Double
 
   If Not mIsInitialized Then
-    Err.Raise vbObjectError + 1210, "clsSwaptionVol.TenorAt", _
-          "Swaption vol surface is not initialized."
+    Err.Raise vbObjectError + 1210, "clsATMSwaptionVol.TenorAt", _
+          "ATM swaption vol surface is not initialized."
   End If
   
   If in_Index < 1 Or in_Index > mNumTenors Then
-    Err.Raise vbObjectError + 1211, "clsSwaptionVol.TenorAt", _
+    Err.Raise vbObjectError + 1211, "clsATMSwaptionVol.TenorAt", _
           "Tenor index is out of range."
   End If
   
@@ -298,17 +262,17 @@ Public Function GridVol( _
   ByVal in_TenorIndex As Long) As Double
 
   If Not mIsInitialized Then
-    Err.Raise vbObjectError + 1220, "clsSwaptionVol.GridVol", _
-          "Swaption vol surface is not initialized."
+    Err.Raise vbObjectError + 1220, "clsATMSwaptionVol.GridVol", _
+          "ATM swaption vol surface is not initialized."
   End If
   
   If in_ExpiryIndex < 1 Or in_ExpiryIndex > mNumExpiries Then
-    Err.Raise vbObjectError + 1221, "clsSwaptionVol.GridVol", _
+    Err.Raise vbObjectError + 1221, "clsATMSwaptionVol.GridVol", _
           "Expiry index is out of range."
   End If
   
   If in_TenorIndex < 1 Or in_TenorIndex > mNumTenors Then
-    Err.Raise vbObjectError + 1222, "clsSwaptionVol.GridVol", _
+    Err.Raise vbObjectError + 1222, "clsATMSwaptionVol.GridVol", _
           "Tenor index is out of range."
   End If
   
@@ -318,15 +282,6 @@ End Function
 
 '====================================================
 ' Variance補間
-'
-' in_X  : 補間対象
-' in_X1 : 左グリッド
-' in_X2 : 右グリッド
-' in_V1 : 左Vol
-' in_V2 : 右Vol
-'
-' 戻り値：
-'   variance = vol^2
 '====================================================
 Private Function InterpVariance( _
   ByVal in_X As Double, _
@@ -355,11 +310,6 @@ End Function
 
 '====================================================
 ' Total Variance補間
-'
-' in_Variance1, in_Variance2 は、すでに tenor方向補間後の variance
-'
-' 戻り値：
-'   total variance = vol^2 × expiry
 '====================================================
 Private Function InterpTotalVariance( _
   ByVal in_Expiry As Double, _
@@ -388,12 +338,6 @@ End Function
 
 '====================================================
 ' Bracket検索
-'
-' in_AllowFlatExtrapolation = False:
-'   範囲外ならエラー
-'
-' in_AllowFlatExtrapolation = True:
-'   範囲外なら端点固定
 '====================================================
 Private Sub FindBracket( _
   ByRef in_Grid() As Double, _
@@ -413,7 +357,7 @@ Private Sub FindBracket( _
       out_IdxHigh = 1
       Exit Sub
     Else
-      Err.Raise vbObjectError + 1300, "clsSwaptionVol.FindBracket", _
+      Err.Raise vbObjectError + 1300, "clsATMSwaptionVol.FindBracket", _
             "Value is below surface range: " & CStr(in_X)
     End If
   End If
@@ -424,7 +368,7 @@ Private Sub FindBracket( _
       out_IdxHigh = n
       Exit Sub
     Else
-      Err.Raise vbObjectError + 1301, "clsSwaptionVol.FindBracket", _
+      Err.Raise vbObjectError + 1301, "clsATMSwaptionVol.FindBracket", _
             "Value is above surface range: " & CStr(in_X)
     End If
   End If
@@ -449,7 +393,7 @@ Private Sub FindBracket( _
     End If
   Next i
   
-  Err.Raise vbObjectError + 1302, "clsSwaptionVol.FindBracket", _
+  Err.Raise vbObjectError + 1302, "clsATMSwaptionVol.FindBracket", _
         "Could not find bracket for value: " & CStr(in_X)
 
 End Sub
@@ -465,10 +409,9 @@ Private Sub ValidateStrictlyIncreasing( _
   
   For i = LBound(in_Grid) + 1 To UBound(in_Grid)
     If in_Grid(i) <= in_Grid(i - 1) Then
-      Err.Raise vbObjectError + 1400, "clsSwaptionVol.ValidateStrictlyIncreasing", _
+      Err.Raise vbObjectError + 1400, "clsATMSwaptionVol.ValidateStrictlyIncreasing", _
             in_Label & " grid must be strictly increasing."
     End If
   Next i
 
 End Sub
-
