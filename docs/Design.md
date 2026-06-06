@@ -372,7 +372,7 @@ Cap volatility bootstrap のテスト・サンプル実行用モジュール。
 
 本モジュールは本番ロジックではなく、動作確認用の入口として位置づける。
 
-## 9. Swaption Volatility Surface の設計方針
+## 9. ATM Swaption Volatility Surface の設計方針
 
 本プロジェクトでは、スワップション取引そのものを商品クラスとして評価することは当面の目的としない。
 
