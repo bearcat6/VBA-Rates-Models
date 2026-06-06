@@ -6,6 +6,7 @@ Option Explicit
 ' ATM Swaption Volatility utilities.
 '
 ' 役割：
+'   ・clsATMSwaptionVol 用の標準モジュール
 '   ・ATM swaption volatility matrix 用の補助関数
 '   ・Expiry / Tenor 文字列の年数変換
 '   ・Excel関数ラッパー
@@ -130,9 +131,9 @@ Public Function ATM_SWAPTION_VOL( _
 
   On Error GoTo ErrHandler
   
-  Dim cSurf As clsSwaptionVol
+  Dim cSurf As clsATMSwaptionVol
   
-  Set cSurf = New clsSwaptionVol
+  Set cSurf = New clsATMSwaptionVol
   
   cSurf.InitializeFromRange in_MatrixRange, in_AllowFlatExtrapolation
   
@@ -177,12 +178,12 @@ Public Function ATM_SWAPTION_VOL_TEXT( _
 
   On Error GoTo ErrHandler
   
-  Dim cSurf As clsSwaptionVol
+  Dim cSurf As clsATMSwaptionVol
   Dim expiryYears As Double
   
   expiryYears = SwaptionTenorToYears(in_ExpiryText)
   
-  Set cSurf = New clsSwaptionVol
+  Set cSurf = New clsATMSwaptionVol
   
   cSurf.InitializeFromRange in_MatrixRange, in_AllowFlatExtrapolation
   
@@ -216,14 +217,14 @@ ErrHandler:
 End Function
 
 '====================================================
-' VBAテスト用：ATM swaption vol matrix の補間確認
+' VBAテスト用：clsATMSwaptionVol の補間確認
 '
 ' 前提：
 '   SwaptionVol シートの A1:F7 にATMボラマトリックスがある
 '====================================================
-Public Sub Test_ATMSwaptionVol()
+Public Sub Test_clsATMSwaptionVol()
 
-  Dim cSurf As clsSwaptionVol
+  Dim cSurf As clsATMSwaptionVol
   Dim ws As Worksheet
   Dim rng As Range
   
@@ -234,7 +235,7 @@ Public Sub Test_ATMSwaptionVol()
   Set ws = ThisWorkbook.Worksheets("SwaptionVol")
   Set rng = ws.Range("A1:F7")
   
-  Set cSurf = New clsSwaptionVol
+  Set cSurf = New clsATMSwaptionVol
   
   ' 第2引数 False：
   ' 範囲外の場合はエラーにする
@@ -251,14 +252,14 @@ Public Sub Test_ATMSwaptionVol()
 End Sub
 
 '====================================================
-' VBAテスト用：ATM swaption vol matrix の端点固定外挿確認
+' VBAテスト用：clsATMSwaptionVol の端点固定外挿確認
 '
 ' 例えば、マトリックスが最大 20Y tenor までしかないとき、
 ' "30Y" を指定したら 20Y のATMボラを使う。
 '====================================================
-Public Sub Test_ATMSwaptionVol_WithFlatExtrapolation()
+Public Sub Test_clsATMSwaptionVol_WithFlatExtrapolation()
 
-  Dim cSurf As clsSwaptionVol
+  Dim cSurf As clsATMSwaptionVol
   Dim ws As Worksheet
   Dim rng As Range
   
@@ -267,7 +268,7 @@ Public Sub Test_ATMSwaptionVol_WithFlatExtrapolation()
   Set ws = ThisWorkbook.Worksheets("SwaptionVol")
   Set rng = ws.Range("A1:F7")
   
-  Set cSurf = New clsSwaptionVol
+  Set cSurf = New clsATMSwaptionVol
   
   ' 第2引数 True：
   ' 範囲外は端点固定
