@@ -13,7 +13,7 @@
 | `docs/01_Discount_Curve/Design.md` | 割引カーブ設計 |
 | `docs/02_OIS_Swap/Design.md` | OISスワップ評価設計 |
 | `docs/03_SABR/Design.md` | Normal SABR設計 |
-| `docs/04_hull_white_1f/Design.md` | Hull-White 1F設計 |
+| `docs/04_Hull-White_1F/Design.md` | Hull-White 1F設計 |
 | `docs/05_cms_spread/Design.md` | CMSスプレッド評価設計 |
 
 ## 設計方針
