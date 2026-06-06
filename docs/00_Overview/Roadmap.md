@@ -41,7 +41,8 @@ RECEIVER : FixedLegPV - FloatingLegPV
 
 ## フェーズ4：SABRモデル
 
-対象モジュール：`03_sabr`
+対象モジュール：`03_sabr`  
+設計ドキュメント：`docs/03_SABR/Design.md`
 
 - まずは `beta = 0` の Normal SABR を実装対象とします。
 - `alpha`、`rho`、`nu` のパラメータ検証を追加します。
