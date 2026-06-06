@@ -808,21 +808,19 @@ End Function
 '============================================================
 ' 内部処理：Hull-White B(t,T)
 '============================================================
-Private Function HW_B( _
-  ByVal in_a As Double, _
-  ByVal in_t As Double, _
-  ByVal in_T As Double _
-) As Double
+Private Function HW_B(ByVal in_a As Double, _
+                      ByVal in_StartT As Double, _
+                      ByVal in_EndT As Double) As Double
 
   Dim dt As Double
 
-  If in_T < in_t Then
-    Err.Raise vbObjectError + 8141, _
-      "clsHWSimulator.HW_B", _
+  If in_EndT < in_StartT Then
+    Err.Raise vbObjectError + 7131, _
+      "clsHWCalibrator.HW_B", _
       "T must be greater than or equal to t."
   End If
 
-  dt = in_T - in_t
+  dt = in_EndT - in_StartT
 
   If Abs(dt) < EPS_TIME Then
     HW_B = 0#
