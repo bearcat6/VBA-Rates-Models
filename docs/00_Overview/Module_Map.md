@@ -8,7 +8,7 @@
 
 ```text
 src/
-├─ 00_CommonModule/
+├─ 00_Common/
 │  ├─ README.md
 │  └─ modules/
 │     └─ mdl_Common.bas
@@ -33,7 +33,7 @@ src/
 
 | モジュール | 役割 |
 |---|---|
-| `00_CommonModule` | 日付処理、日数計算、営業日調整、配列処理、数値計算、乱数、正規分布、Bachelier関連などの共通部品 |
+| `00_Common` | 日付処理、日数計算、営業日調整、配列処理、数値計算、乱数、正規分布、Bachelier関連などの共通部品 |
 | `01_discount_curve` | JPY TONA/OIS の基本的な割引カーブ構築とカーブインターフェース |
 | `02_ois_swap` | OISスワップの商品条件、キャッシュフロー生成、PV、NPV、パーレート計算 |
 | `03_sabr` | Normal SABR のパラメータ、スマイルフィット、価格曲線の平滑化、密度計算、ストライクと分位点の変換 |
@@ -60,17 +60,17 @@ VBAコード側の `src` フォルダについては、コードの物理移動�
 依存関係は、原則として上流から下流へ一方向にします。
 
 ```text
-00_CommonModule
+00_Common
   ↓
 01_discount_curve
   ↓
 02_ois_swap
 
-00_CommonModule + 01_discount_curve
+00_Common + 01_discount_curve
   ↓
 04_hull_white_1f
 
-00_CommonModule + 01_discount_curve + 03_sabr
+00_Common + 01_discount_curve + 03_sabr
   ↓
 05_cms_spread
 ```
@@ -81,10 +81,10 @@ VBAコード側の `src` フォルダについては、コードの物理移動�
 
 | 現在のパス | 移動後の想定パス | 補足 |
 |---|---|---|
-| `src/modules/mdl_Common.bas` | `src/00_CommonModule/modules/mdl_Common.bas` | 共通ユーティリティ、ACT/365F日数計算。移動済み |
-| `src/modules/mdl_BusinessDay.bas` | `src/00_CommonModule/modules/mdl_BusinessDay.bas` | 営業日判定・営業日調整・テナー日付計算。移動候補 |
-| `src/classes/clsHolidayCalendar.cls` | `src/00_CommonModule/classes/clsHolidayCalendar.cls` | 休日カレンダー。移動候補 |
-| `src/classes/clsRandomNormal.cls` | `src/00_CommonModule/classes/clsRandomNormal.cls` | モンテカルロ用の共通乱数部品。移動候補 |
+| `src/modules/mdl_Common.bas` | `src/00_Common/modules/mdl_Common.bas` | 共通ユーティリティ、ACT/365F日数計算。移動済み |
+| `src/modules/mdl_BusinessDay.bas` | `src/00_Common/modules/mdl_BusinessDay.bas` | 営業日判定・営業日調整・テナー日付計算。移動候補 |
+| `src/classes/clsHolidayCalendar.cls` | `src/00_Common/classes/clsHolidayCalendar.cls` | 休日カレンダー。移動候補 |
+| `src/classes/clsRandomNormal.cls` | `src/00_Common/classes/clsRandomNormal.cls` | モンテカルロ用の共通乱数部品。移動候補 |
 | `src/classes/clsDiscountCurve.cls` | `src/01_discount_curve/classes/clsDiscountCurve.cls` | カーブインターフェース |
 | `src/classes/clsOISStepForwardCurve.cls` | `src/01_discount_curve/classes/clsOISStepForwardCurve.cls` | Step Forward型OISカーブ |
 | `src/classes/clsOISZeroLinearCurve.cls` | `src/01_discount_curve/classes/clsOISZeroLinearCurve.cls` | ゼロレート直線補間型カーブ |
