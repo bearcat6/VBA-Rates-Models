@@ -23,7 +23,7 @@
 | 旧パス | 新パス | 補足 |
 |---|---|---|
 | `src/modules/mdl_Common.bas` | `src/00_Common/modules/mdl_Common.bas` | 共通ユーティリティ、ACT/365F日数計算。移動済み |
-| `src/modules/mdl_BusinessDay.bas` | `src/00_Common/modules/mdl_BusinessDay.bas` | 営業日判定・営業日調整・テナー日付計算。移動候補 |
+| `src/modules/mdl_BusinessDay.bas` | `src/00_Common/modules/mdl_BusinessDay.bas` | 営業日判定・営業日調整・テナー日付計算。移動済み |
 | `src/classes/clsHolidayCalendar.cls` | `src/00_Common/classes/clsHolidayCalendar.cls` | 休日カレンダー。移動候補 |
 | `src/classes/clsRandomNormal.cls` | `src/00_Common/classes/clsRandomNormal.cls` | 標準正規乱数生成。移動候補 |
 
