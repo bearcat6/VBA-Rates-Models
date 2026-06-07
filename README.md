@@ -10,7 +10,7 @@ VBAクラスを単純に横並びで管理するのではなく、目的別に�
 
 | 領域 | 目的 | 状況 |
 |---|---|---|
-| `00_CommonModule` | 共通ユーティリティ、日数計算、共通関数 | 対応中 |
+| `00_Common` | 共通ユーティリティ、日数計算、共通関数 | 対応中 |
 | `01_Discount_Curve` | JPY TONA/OIS の基本的な割引カーブ構築 | 対応中 |
 | `02_OIS_Swap` | OISスワップのキャッシュフロー生成と評価 | 対応中・拡張中 |
 | `03_SABR` | Normal SABR のスマイル、密度、分位点計算 | 計画中・拡張中 |
@@ -39,7 +39,7 @@ VBA-Rates-Models/
 │  └─ 06_RandomNumber/
 │     └─ README.md
 ├─ src/
-│  ├─ 00_CommonModule/
+│  ├─ 00_Common/
 │  │  ├─ README.md
 │  │  └─ modules/
 │  │     └─ mdl_Common.bas
@@ -58,17 +58,17 @@ VBA-Rates-Models/
 依存関係は、原則として一方向にします。
 
 ```text
-00_CommonModule
+00_Common
   ↓
 01_discount_curve
   ↓
 02_ois_swap
 
-00_CommonModule + 01_discount_curve
+00_Common + 01_discount_curve
   ↓
 04_hull_white_1f
 
-00_CommonModule + 01_discount_curve + 03_sabr
+00_Common + 01_discount_curve + 03_sabr
   ↓
 05_cms_spread
 ```
