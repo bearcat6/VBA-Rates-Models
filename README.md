@@ -6,11 +6,11 @@ Excel/VBAでJPY金利分析を試作するためのリポジトリです。
 
 ## 対象範囲
 
-VBAクラスを単純に横並びで管理するのではなく、目的別に分けて管理します。
+VBAクラスや標準モジュールを単純に横並びで管理するのではなく、分析目的ごとにフォルダを分けて管理します。
 
 | 領域 | 目的 | 状況 |
 |---|---|---|
-| `00_Common` | 共通ユーティリティ、日数計算、共通関数 | 対応中 |
+| `00_Common` | 共通ユーティリティ、日数計算、営業日調整、共通関数 | 対応中 |
 | `01_Discount_Curve` | JPY TONA/OIS の基本的な割引カーブ構築 | 対応中 |
 | `02_OIS_Swap` | OISスワップのキャッシュフロー生成と評価 | 対応中・拡張中 |
 | `03_SABR` | Normal SABR のスマイル、密度、分位点計算 | 計画中・拡張中 |
@@ -45,10 +45,11 @@ VBA-Rates-Models/
 │  │     ├─ mdl_Common.bas
 │  │     └─ mdl_BusinessDay.bas
 │  ├─ 01_Discount_Curve/
-│  ├─ 02_ois_swap/
-│  ├─ 03_sabr/
-│  ├─ 04_hull_white_1f/
-│  └─ 05_cms_spread/
+│  ├─ 02_OIS_Swap/
+│  ├─ 03_SABR/
+│  ├─ 04_Hull-White_1F/
+│  ├─ 05_CMS-Spread/
+│  └─ 06_RandomNumber/
 ├─ examples/
 ├─ tests/
 └─ README.md
@@ -63,18 +64,18 @@ VBA-Rates-Models/
   ↓
 01_Discount_Curve
   ↓
-02_ois_swap
+02_OIS_Swap
 
 00_Common + 01_Discount_Curve
   ↓
-04_hull_white_1f
+04_Hull-White_1F
 
-00_Common + 01_Discount_Curve + 03_sabr
+00_Common + 01_Discount_Curve + 03_SABR
   ↓
-05_cms_spread
+05_CMS-Spread
 ```
 
-`03_sabr` はCMS専用ではなく、リスク分析やストレスシナリオ作成にも使えるため、CMSとは独立したモジュールとして管理します。
+`03_SABR` はCMS専用ではなく、リスク分析やストレスシナリオ作成にも使えるため、CMSとは独立したモジュールとして管理します。
 
 `06_RandomNumber` は、Hull-White 1F などのモンテカルロシミュレーションで共通利用する乱数生成ロジックを整理する領域です。
 
