@@ -11,7 +11,8 @@ src/
 ├─ 00_Common/
 │  ├─ README.md
 │  └─ modules/
-│     └─ mdl_Common.bas
+│     ├─ mdl_Common.bas
+│     └─ mdl_BusinessDay.bas
 ├─ 01_discount_curve/
 │  ├─ classes/
 │  └─ modules/
@@ -82,7 +83,7 @@ VBAコード側の `src` フォルダについては、コードの物理移動�
 | 現在のパス | 移動後の想定パス | 補足 |
 |---|---|---|
 | `src/modules/mdl_Common.bas` | `src/00_Common/modules/mdl_Common.bas` | 共通ユーティリティ、ACT/365F日数計算。移動済み |
-| `src/modules/mdl_BusinessDay.bas` | `src/00_Common/modules/mdl_BusinessDay.bas` | 営業日判定・営業日調整・テナー日付計算。移動候補 |
+| `src/modules/mdl_BusinessDay.bas` | `src/00_Common/modules/mdl_BusinessDay.bas` | 営業日判定・営業日調整・テナー日付計算。移動済み |
 | `src/classes/clsHolidayCalendar.cls` | `src/00_Common/classes/clsHolidayCalendar.cls` | 休日カレンダー。移動候補 |
 | `src/classes/clsRandomNormal.cls` | `src/00_Common/classes/clsRandomNormal.cls` | モンテカルロ用の共通乱数部品。移動候補 |
 | `src/classes/clsDiscountCurve.cls` | `src/01_discount_curve/classes/clsDiscountCurve.cls` | カーブインターフェース |
