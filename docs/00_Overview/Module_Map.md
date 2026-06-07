@@ -16,16 +16,19 @@ src/
 ├─ 01_Discount_Curve/
 │  ├─ classes/
 │  └─ modules/
-├─ 02_ois_swap/
+├─ 02_OIS_Swap/
 │  ├─ classes/
 │  └─ modules/
-├─ 03_sabr/
+├─ 03_SABR/
 │  ├─ classes/
 │  └─ modules/
-├─ 04_hull_white_1f/
+├─ 04_Hull-White_1F/
 │  ├─ classes/
 │  └─ modules/
-└─ 05_cms_spread/
+├─ 05_CMS-Spread/
+│  ├─ classes/
+│  └─ modules/
+└─ 06_RandomNumber/
    ├─ classes/
    └─ modules/
 ```
@@ -36,10 +39,11 @@ src/
 |---|---|
 | `00_Common` | 日付処理、日数計算、営業日調整、配列処理、数値計算、乱数、正規分布、Bachelier関連などの共通部品 |
 | `01_Discount_Curve` | JPY TONA/OIS の基本的な割引カーブ構築とカーブインターフェース |
-| `02_ois_swap` | OISスワップの商品条件、キャッシュフロー生成、PV、NPV、パーレート計算 |
-| `03_sabr` | Normal SABR のパラメータ、スマイルフィット、価格曲線の平滑化、密度計算、ストライクと分位点の変換 |
-| `04_hull_white_1f` | 1ファクター Hull-White モデル、ボラティリティへのキャリブレーション、モンテカルロシミュレーション、将来カーブ生成 |
-| `05_cms_spread` | CMSおよびCMSスプレッド評価関連。現時点では主にスワップション・ボラティリティ処理 |
+| `02_OIS_Swap` | OISスワップの商品条件、キャッシュフロー生成、PV、NPV、パーレート計算 |
+| `03_SABR` | Normal SABR のパラメータ、スマイルフィット、価格曲線の平滑化、密度計算、ストライクと分位点の変換 |
+| `04_Hull-White_1F` | 1ファクター Hull-White モデル、ボラティリティへのキャリブレーション、モンテカルロシミュレーション、将来カーブ生成 |
+| `05_CMS-Spread` | CMSおよびCMSスプレッド評価関連。現時点では主にスワップション・ボラティリティ処理 |
+| `06_RandomNumber` | Hull-White 1Fなどのモンテカルロシミュレーションで利用する乱数生成ロジック |
 
 ## docs 側のフォルダ名
 
@@ -54,7 +58,7 @@ docs/05_CMS-Spread/
 docs/06_RandomNumber/
 ```
 
-VBAコード側の `src` フォルダについては、コードの物理移動とExcel/VBAへのインポート確認を分けて進めます。
+VBAコード側の `src` フォルダについても、ドキュメント側と表記を合わせ、目的別のフォルダ名を使います。
 
 ## 依存関係の方向
 
@@ -65,18 +69,18 @@ VBAコード側の `src` フォルダについては、コードの物理移動�
   ↓
 01_Discount_Curve
   ↓
-02_ois_swap
+02_OIS_Swap
 
 00_Common + 01_Discount_Curve
   ↓
-04_hull_white_1f
+04_Hull-White_1F
 
-00_Common + 01_Discount_Curve + 03_sabr
+00_Common + 01_Discount_Curve + 03_SABR
   ↓
-05_cms_spread
+05_CMS-Spread
 ```
 
-逆方向の依存は避けます。たとえば、`01_Discount_Curve` から `04_hull_white_1f` や `05_cms_spread` を呼び出す構成にはしません。
+逆方向の依存は避けます。たとえば、`01_Discount_Curve` から `04_Hull-White_1F` や `05_CMS-Spread` を呼び出す構成にはしません。
 
 ## 現在のフラット構成からの移動方針
 
@@ -90,13 +94,13 @@ VBAコード側の `src` フォルダについては、コードの物理移動�
 | `src/classes/clsOISStepForwardCurve.cls` | `src/01_Discount_Curve/classes/clsOISStepForwardCurve.cls` | Step Forward型OISカーブ |
 | `src/classes/clsOISZeroLinearCurve.cls` | `src/01_Discount_Curve/classes/clsOISZeroLinearCurve.cls` | ゼロレート直線補間型カーブ |
 | `src/modules/mdl_CurveMath.bas` | `src/01_Discount_Curve/modules/mdl_CurveMath.bas` | カーブ関連の数値計算 |
-| `src/classes/clsVolSurface.cls` | `src/04_hull_white_1f/classes/clsVolSurface.cls` | 現時点ではHull-White入力用の汎用ボラティリティ・サーフェス |
-| `src/classes/clsHullWhite1F.cls` | `src/04_hull_white_1f/classes/clsHullWhite1F.cls` | Hull-Whiteモデル本体 |
-| `src/classes/clsHWCalibrator.cls` | `src/04_hull_white_1f/classes/clsHWCalibrator.cls` | Hull-Whiteキャリブレーション |
-| `src/classes/clsHWSimulator.cls` | `src/04_hull_white_1f/classes/clsHWSimulator.cls` | Hull-Whiteシミュレーション |
-| `src/modules/mdl_HullWhiteMath.bas` | `src/04_hull_white_1f/modules/mdl_HullWhiteMath.bas` | Hull-White関連の数値計算 |
-| `src/modules/mdl_HullWhiteWorkFlow.bas` | `src/04_hull_white_1f/modules/mdl_HullWhiteWorkflow.bas` | Excel上でのHull-White実行フロー |
-| `src/classes/clsATMSwaptionVol.cls` | `src/05_cms_spread/classes/clsATMSwaptionVol.cls` | CMS関連評価で使うATMスワップション・ボラティリティ |
+| `src/classes/clsVolSurface.cls` | `src/04_Hull-White_1F/classes/clsVolSurface.cls` | 現時点ではHull-White入力用の汎用ボラティリティ・サーフェス |
+| `src/classes/clsHullWhite1F.cls` | `src/04_Hull-White_1F/classes/clsHullWhite1F.cls` | Hull-Whiteモデル本体 |
+| `src/classes/clsHWCalibrator.cls` | `src/04_Hull-White_1F/classes/clsHWCalibrator.cls` | Hull-Whiteキャリブレーション |
+| `src/classes/clsHWSimulator.cls` | `src/04_Hull-White_1F/classes/clsHWSimulator.cls` | Hull-Whiteシミュレーション |
+| `src/modules/mdl_HullWhiteMath.bas` | `src/04_Hull-White_1F/modules/mdl_HullWhiteMath.bas` | Hull-White関連の数値計算 |
+| `src/modules/mdl_HullWhiteWorkFlow.bas` | `src/04_Hull-White_1F/modules/mdl_HullWhiteWorkflow.bas` | Excel上でのHull-White実行フロー |
+| `src/classes/clsATMSwaptionVol.cls` | `src/05_CMS-Spread/classes/clsATMSwaptionVol.cls` | CMS関連評価で使うATMスワップション・ボラティリティ |
 
 ## 命名ルール
 
