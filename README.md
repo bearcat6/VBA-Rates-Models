@@ -42,8 +42,9 @@ VBA-Rates-Models/
 │  ├─ 00_Common/
 │  │  ├─ README.md
 │  │  └─ modules/
-│  │     └─ mdl_Common.bas
-│  ├─ 01_discount_curve/
+│  │     ├─ mdl_Common.bas
+│  │     └─ mdl_BusinessDay.bas
+│  ├─ 01_Discount_Curve/
 │  ├─ 02_ois_swap/
 │  ├─ 03_sabr/
 │  ├─ 04_hull_white_1f/
@@ -60,15 +61,15 @@ VBA-Rates-Models/
 ```text
 00_Common
   ↓
-01_discount_curve
+01_Discount_Curve
   ↓
 02_ois_swap
 
-00_Common + 01_discount_curve
+00_Common + 01_Discount_Curve
   ↓
 04_hull_white_1f
 
-00_Common + 01_discount_curve + 03_sabr
+00_Common + 01_Discount_Curve + 03_sabr
   ↓
 05_cms_spread
 ```
