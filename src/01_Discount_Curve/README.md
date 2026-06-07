@@ -17,6 +17,15 @@ modules/
   mdl_CurveMath.bas
 ```
 
+## 現在の移動状況
+
+| ファイル | 状況 |
+|---|---|
+| `classes/clsDiscountCurve.cls` | 移動済み |
+| `modules/mdl_CurveMath.bas` | 移動済み |
+| `classes/clsOISStepForwardCurve.cls` | 移動予定。長いため全文確認後に移動 |
+| `classes/clsOISZeroLinearCurve.cls` | 移動予定。長いため全文確認後に移動 |
+
 ## 主な役割
 
 - Discount Factor を返す。
