@@ -10,6 +10,8 @@
 src/
 ├─ 00_Common/
 │  ├─ README.md
+│  ├─ classes/
+│  │  └─ clsSplineCurve.cls
 │  └─ modules/
 │     ├─ mdl_Common.bas
 │     └─ mdl_BusinessDay.bas
@@ -37,7 +39,7 @@ src/
 
 | モジュール | 役割 |
 |---|---|
-| `00_Common` | 日付処理、日数計算、営業日調整、配列処理、数値計算、乱数、正規分布、Bachelier関連などの共通部品 |
+| `00_Common` | 日付処理、日数計算、営業日調整、配列処理、数値計算、数値補間、乱数、正規分布、Bachelier関連などの共通部品 |
 | `01_Discount_Curve` | JPY TONA/OIS の基本的な割引カーブ構築とカーブインターフェース |
 | `02_OIS_Swap` | OISスワップの商品条件、キャッシュフロー生成、PV、NPV、パーレート計算 |
 | `03_SABR` | Normal SABR のパラメータ、スマイルフィット、価格曲線の平滑化、密度計算、ストライクと分位点の変換 |
@@ -88,6 +90,7 @@ VBAコード側の `src` フォルダについても、ドキュメント側と�
 |---|---|---|
 | `src/modules/mdl_Common.bas` | `src/00_Common/modules/mdl_Common.bas` | 共通ユーティリティ、ACT/365F日数計算。移動済み |
 | `src/modules/mdl_BusinessDay.bas` | `src/00_Common/modules/mdl_BusinessDay.bas` | 営業日判定・営業日調整・テナー日付計算。移動済み |
+| `Financial_Code/cls/clsSplineCurve.cls` | `src/00_Common/classes/clsSplineCurve.cls` | Natural Cubic Spline補間。割引カーブ、ボラカーブ、SABR、Hull-Whiteで共通利用。移動済み |
 | `src/classes/clsHolidayCalendar.cls` | `src/00_Common/classes/clsHolidayCalendar.cls` | 休日カレンダー。移動候補 |
 | `src/classes/clsRandomNormal.cls` | `src/00_Common/classes/clsRandomNormal.cls` | モンテカルロ用の共通乱数部品。移動候補 |
 | `src/classes/clsDiscountCurve.cls` | `src/01_Discount_Curve/classes/clsDiscountCurve.cls` | カーブインターフェース |
