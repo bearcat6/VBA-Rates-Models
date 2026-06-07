@@ -13,7 +13,7 @@ src/
 │  └─ modules/
 │     ├─ mdl_Common.bas
 │     └─ mdl_BusinessDay.bas
-├─ 01_discount_curve/
+├─ 01_Discount_Curve/
 │  ├─ classes/
 │  └─ modules/
 ├─ 02_ois_swap/
@@ -35,7 +35,7 @@ src/
 | モジュール | 役割 |
 |---|---|
 | `00_Common` | 日付処理、日数計算、営業日調整、配列処理、数値計算、乱数、正規分布、Bachelier関連などの共通部品 |
-| `01_discount_curve` | JPY TONA/OIS の基本的な割引カーブ構築とカーブインターフェース |
+| `01_Discount_Curve` | JPY TONA/OIS の基本的な割引カーブ構築とカーブインターフェース |
 | `02_ois_swap` | OISスワップの商品条件、キャッシュフロー生成、PV、NPV、パーレート計算 |
 | `03_sabr` | Normal SABR のパラメータ、スマイルフィット、価格曲線の平滑化、密度計算、ストライクと分位点の変換 |
 | `04_hull_white_1f` | 1ファクター Hull-White モデル、ボラティリティへのキャリブレーション、モンテカルロシミュレーション、将来カーブ生成 |
@@ -63,20 +63,20 @@ VBAコード側の `src` フォルダについては、コードの物理移動�
 ```text
 00_Common
   ↓
-01_discount_curve
+01_Discount_Curve
   ↓
 02_ois_swap
 
-00_Common + 01_discount_curve
+00_Common + 01_Discount_Curve
   ↓
 04_hull_white_1f
 
-00_Common + 01_discount_curve + 03_sabr
+00_Common + 01_Discount_Curve + 03_sabr
   ↓
 05_cms_spread
 ```
 
-逆方向の依存は避けます。たとえば、`01_discount_curve` から `04_hull_white_1f` や `05_cms_spread` を呼び出す構成にはしません。
+逆方向の依存は避けます。たとえば、`01_Discount_Curve` から `04_hull_white_1f` や `05_cms_spread` を呼び出す構成にはしません。
 
 ## 現在のフラット構成からの移動方針
 
@@ -86,10 +86,10 @@ VBAコード側の `src` フォルダについては、コードの物理移動�
 | `src/modules/mdl_BusinessDay.bas` | `src/00_Common/modules/mdl_BusinessDay.bas` | 営業日判定・営業日調整・テナー日付計算。移動済み |
 | `src/classes/clsHolidayCalendar.cls` | `src/00_Common/classes/clsHolidayCalendar.cls` | 休日カレンダー。移動候補 |
 | `src/classes/clsRandomNormal.cls` | `src/00_Common/classes/clsRandomNormal.cls` | モンテカルロ用の共通乱数部品。移動候補 |
-| `src/classes/clsDiscountCurve.cls` | `src/01_discount_curve/classes/clsDiscountCurve.cls` | カーブインターフェース |
-| `src/classes/clsOISStepForwardCurve.cls` | `src/01_discount_curve/classes/clsOISStepForwardCurve.cls` | Step Forward型OISカーブ |
-| `src/classes/clsOISZeroLinearCurve.cls` | `src/01_discount_curve/classes/clsOISZeroLinearCurve.cls` | ゼロレート直線補間型カーブ |
-| `src/modules/mdl_CurveMath.bas` | `src/01_discount_curve/modules/mdl_CurveMath.bas` | カーブ関連の数値計算 |
+| `src/classes/clsDiscountCurve.cls` | `src/01_Discount_Curve/classes/clsDiscountCurve.cls` | カーブインターフェース |
+| `src/classes/clsOISStepForwardCurve.cls` | `src/01_Discount_Curve/classes/clsOISStepForwardCurve.cls` | Step Forward型OISカーブ |
+| `src/classes/clsOISZeroLinearCurve.cls` | `src/01_Discount_Curve/classes/clsOISZeroLinearCurve.cls` | ゼロレート直線補間型カーブ |
+| `src/modules/mdl_CurveMath.bas` | `src/01_Discount_Curve/modules/mdl_CurveMath.bas` | カーブ関連の数値計算 |
 | `src/classes/clsVolSurface.cls` | `src/04_hull_white_1f/classes/clsVolSurface.cls` | 現時点ではHull-White入力用の汎用ボラティリティ・サーフェス |
 | `src/classes/clsHullWhite1F.cls` | `src/04_hull_white_1f/classes/clsHullWhite1F.cls` | Hull-Whiteモデル本体 |
 | `src/classes/clsHWCalibrator.cls` | `src/04_hull_white_1f/classes/clsHWCalibrator.cls` | Hull-Whiteキャリブレーション |
